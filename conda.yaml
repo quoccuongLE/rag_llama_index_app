@@ -12,3 +12,4 @@ dependencies:
   - pip
   - pip:
     - fire
+    - llama-index==0.10.0
