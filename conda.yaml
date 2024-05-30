@@ -13,3 +13,6 @@ dependencies:
   - pip:
     - fire
     - llama-index==0.10.0
+    - transformers
+    - sentence_transformers
+    - InstructorEmbedding
