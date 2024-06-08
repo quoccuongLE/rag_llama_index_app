@@ -3,7 +3,7 @@ import os
 
 openai.api_key = os.environ["OPENAI_API_KEY"]
 
-# from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.embeddings.openai import OpenAIEmbedding
 
 # openai_embedding = OpenAIEmbedding()
 # embed = openai_embedding.get_text_embedding("hello world!")
@@ -11,10 +11,6 @@ openai.api_key = os.environ["OPENAI_API_KEY"]
 # print(embed[:10])
 
 from InstructorEmbedding import INSTRUCTOR
-
-from sentence_transformers import SentenceTransformer
-
-# model = SentenceTransformer("hkunlp/instructor-large")
 
 model = INSTRUCTOR("hkunlp/instructor-large")
 sentence = "3D ActionSLAM: wearable person tracking in multi-floor environments"
@@ -73,21 +69,9 @@ llm = OpenAI(model="gpt-3.5-turbo-16k", temperature=0)
 service_context = ServiceContext.from_defaults(llm=llm, embed_model=instructor_embeddings, chunk_size=512)
 set_global_service_context(service_context)
 
-
-import os
-# import sys
-
-# # sys.path.append(os.path.join(os.getcwd(), ".."))
-
-# # from llama_docs_bot.indexing import create_query_engine
-# from llama_docs_utils.indexing import create_query_engine
-from llama_docs_utils.indexing import get_query_engine_tool
-
-# # remove any existing indices
-# # !rm -rf ./*_index
+from example_utils import create_query_engine
 
 query_engine = create_query_engine()
-
 
 response = query_engine.query("What is the Sub Question query engine?")
 response.print_response_stream()
@@ -96,7 +80,7 @@ response.print_response_stream()
 print(response.get_formatted_sources(length=256))
 
 
-# service_context = ServiceContext.from_defaults(llm=llm, embed_model=OpenAIEmbedding(), chunk_size=512)
+service_context = ServiceContext.from_defaults(llm=llm, embed_model=OpenAIEmbedding(), chunk_size=512)
 set_global_service_context(service_context)
 
 query_engine = create_query_engine()
