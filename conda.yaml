@@ -16,3 +16,4 @@ dependencies:
     - transformers
     - sentence_transformers
     - InstructorEmbedding
+    - spacy

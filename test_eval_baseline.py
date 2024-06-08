@@ -3,7 +3,7 @@ import openai
 import os
 
 
-os.environ["OPENAI_API_KEY"] = ""
+# os.environ["OPENAI_API_KEY"] = ""
 openai.api_key = os.environ["OPENAI_API_KEY"]
 
 
@@ -249,10 +249,13 @@ import asyncio
 import time
 from llama_index.core import Response
 from llama_index.core.query_engine import SubQuestionQueryEngine
+from llama_index.core.evaluation import RelevancyEvaluator # QueryResponseEvaluator -> RelevancyEvaluator
 
 
 def evaluate_query_engine(
-    evaluator: QueryResponseEvaluator, query_engine: SubQuestionQueryEngine, questions: Sequence[str]
+    evaluator: RelevancyEvaluator,
+    query_engine: SubQuestionQueryEngine,
+    questions: Sequence[str]
 ) -> Tuple[int, Sequence[int]]:
     async def run_query(query_engine, q) -> Response:
         try:
@@ -280,9 +283,7 @@ def evaluate_query_engine(
     return total_correct, all_results
 
 
-from llama_index.core.evaluation import QueryResponseEvaluator
-
-evaluator = QueryResponseEvaluator(service_context=gpt4_service_context)
+evaluator = RelevancyEvaluator(service_context=gpt4_service_context)
 
 total_correct, all_results = evaluate_query_engine(evaluator, query_engine, question_dataset)
 
