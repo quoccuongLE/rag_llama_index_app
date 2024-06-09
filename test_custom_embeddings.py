@@ -4,11 +4,12 @@ import os
 openai.api_key = os.environ["OPENAI_API_KEY"]
 
 from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.core import ServiceContext, set_global_service_context
 
-# openai_embedding = OpenAIEmbedding()
-# embed = openai_embedding.get_text_embedding("hello world!")
-# print(len(embed))
-# print(embed[:10])
+openai_embedding = OpenAIEmbedding()
+embed = openai_embedding.get_text_embedding("hello world!")
+print(len(embed))
+print(embed[:10])
 
 from InstructorEmbedding import INSTRUCTOR
 
@@ -61,7 +62,6 @@ print(len(embed))
 print(embed[:10])
 
 
-from llama_index.core import ServiceContext, set_global_service_context
 from llama_index.llms.openai import OpenAI
 
 
@@ -70,11 +70,12 @@ service_context = ServiceContext.from_defaults(llm=llm, embed_model=instructor_e
 set_global_service_context(service_context)
 
 from example_utils import create_query_engine
+from pathlib import Path
 
-query_engine = create_query_engine()
+query_engine = create_query_engine(Path("data") / "custom_emb_persist_dirs")
 
 response = query_engine.query("What is the Sub Question query engine?")
-response.print_response_stream()
+print(str(response))
 
 
 print(response.get_formatted_sources(length=256))
@@ -86,7 +87,6 @@ set_global_service_context(service_context)
 query_engine = create_query_engine()
 
 response = query_engine.query("What is the Sub Question query engine?")
-response.print_response_stream()
+print(str(response))
 
 print(response.get_formatted_sources(length=256))
-

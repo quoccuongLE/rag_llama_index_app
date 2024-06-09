@@ -10,7 +10,7 @@ from llama_index.core.response_synthesizers import get_response_synthesizer
 
 
 LLAMA_MARKDOWN_DOCS_PATH = "./data/docs"
-PERSIST_DATA_DIR = "./data/persist_dirs"
+PERSIST_DATA_DIR = Path("data") / "persist_dirs"
 
 
 def load_markdown_docs(filepath: Path):
@@ -55,7 +55,7 @@ def load_docs():
     )
 
 
-def create_query_engine():
+def create_query_engine(persistent_data_dir: Path = PERSIST_DATA_DIR):
     """Create a query engine."""
     (
         getting_started_docs,
@@ -72,83 +72,92 @@ def create_query_engine():
     try:
         getting_started_index = load_index_from_storage(
             StorageContext.from_defaults(
-                persist_dir=f"{PERSIST_DATA_DIR}/getting_started_index"
+                persist_dir=persistent_data_dir / "getting_started_index"
             )
         )
         community_index = load_index_from_storage(
             StorageContext.from_defaults(
-                persist_dir=f"{PERSIST_DATA_DIR}/community_index"
+                persist_dir=persistent_data_dir / "community_index"
             )
         )
         data_index = load_index_from_storage(
-            StorageContext.from_defaults(persist_dir=f"{PERSIST_DATA_DIR}/data_index")
+            StorageContext.from_defaults(persist_dir=persistent_data_dir / "data_index")
         )
         agent_index = load_index_from_storage(
-            StorageContext.from_defaults(persist_dir=f"{PERSIST_DATA_DIR}/agent_index")
+            StorageContext.from_defaults(persist_dir=persistent_data_dir / "agent_index")
         )
         model_index = load_index_from_storage(
-            StorageContext.from_defaults(persist_dir=f"{PERSIST_DATA_DIR}/model_index")
+            StorageContext.from_defaults(persist_dir=persistent_data_dir / "model_index")
         )
         query_index = load_index_from_storage(
-            StorageContext.from_defaults(persist_dir=f"{PERSIST_DATA_DIR}/query_index")
+            StorageContext.from_defaults(persist_dir=persistent_data_dir / "query_index")
         )
         supporting_index = load_index_from_storage(
             StorageContext.from_defaults(
-                persist_dir=f"{PERSIST_DATA_DIR}/supporting_index"
+                persist_dir=persistent_data_dir / "supporting_index"
             )
         )
         tutorials_index = load_index_from_storage(
             StorageContext.from_defaults(
-                persist_dir=f"{PERSIST_DATA_DIR}/tutorials_index"
+                persist_dir=persistent_data_dir / "tutorials_index"
             )
         )
         contributing_index = load_index_from_storage(
             StorageContext.from_defaults(
-                persist_dir=f"{PERSIST_DATA_DIR}/contributing_index"
+                persist_dir=persistent_data_dir / "contributing_index"
             )
         )
     except Exception:
+        print("Indexing: Getting started")
         getting_started_index = VectorStoreIndex.from_documents(getting_started_docs)
         getting_started_index.storage_context.persist(
-            persist_dir=f"{PERSIST_DATA_DIR}/getting_started_index"
+            persist_dir=persistent_data_dir / "getting_started_index"
         )
 
+        print("Indexing: Community")
         community_index = VectorStoreIndex.from_documents(community_docs)
         community_index.storage_context.persist(
-            persist_dir=f"{PERSIST_DATA_DIR}/community_index"
+            persist_dir=persistent_data_dir / "community_index"
         )
 
+        print("Indexing: Data")
         data_index = VectorStoreIndex.from_documents(data_docs)
-        data_index.storage_context.persist(persist_dir=f"{PERSIST_DATA_DIR}/data_index")
+        data_index.storage_context.persist(persist_dir=persistent_data_dir / "data_index")
 
+        print("Indexing: Agent")
         agent_index = VectorStoreIndex.from_documents(agent_docs)
         agent_index.storage_context.persist(
-            persist_dir=f"{PERSIST_DATA_DIR}/agent_index"
+            persist_dir=persistent_data_dir / "agent_index"
         )
 
+        print("Indexing: model")
         model_index = VectorStoreIndex.from_documents(model_docs)
         model_index.storage_context.persist(
-            persist_dir=f"{PERSIST_DATA_DIR}/model_index"
+            persist_dir=persistent_data_dir / "model_index"
         )
 
+        print("Indexing: Query")
         query_index = VectorStoreIndex.from_documents(query_docs)
         query_index.storage_context.persist(
-            persist_dir=f"{PERSIST_DATA_DIR}/query_index"
+            persist_dir=persistent_data_dir / "query_index"
         )
 
+        print("Indexing: Supporting")
         supporting_index = VectorStoreIndex.from_documents(supporting_docs)
         supporting_index.storage_context.persist(
-            persist_dir=f"{PERSIST_DATA_DIR}/supporting_index"
+            persist_dir=persistent_data_dir / "supporting_index"
         )
 
+        print("Indexing: Toturials")
         tutorials_index = VectorStoreIndex.from_documents(tutorials_docs)
         tutorials_index.storage_context.persist(
-            persist_dir=f"{PERSIST_DATA_DIR}/tutorials_index"
+            persist_dir=persistent_data_dir / "tutorials_index"
         )
 
+        print("Indexing: Contribution")
         contributing_index = VectorStoreIndex.from_documents(contributing_docs)
         contributing_index.storage_context.persist(
-            persist_dir=f"{PERSIST_DATA_DIR}/contributing_index"
+            persist_dir=persistent_data_dir / "contributing_index"
         )
 
     # create a query engine tool for each folder
@@ -220,7 +229,8 @@ def create_query_engine():
         ],
         # enable this for streaming
         # response_synthesizer=get_response_synthesizer(streaming=True),
-        verbose=False,
+        verbose=True,
+        use_async=False
     )
 
     return query_engine
