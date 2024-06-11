@@ -18,19 +18,22 @@ from llama_index.llms.openai import OpenAI
 from llama_index.llms.ollama import Ollama
 from llama_index.embeddings.ollama import OllamaEmbedding
 from llama_docs_utils.markdown_docs_reader import MarkdownDocsReader
+from llama_index.core import Settings
 
 
+# Replace OpenAI GPT3.5 by Local llama 3 8B model
 # service_context = ServiceContext.from_defaults(
 #     llm=OpenAI(model="gpt-3.5-turbo-16k", max_tokens=512, temperature=0.1),
 #     embed_model="local:BAAI/bge-base-en",
 # )
 
-service_context = ServiceContext.from_defaults(
-    llm=Ollama(model="llama3", request_timeout=120.0),
-    embed_model=OllamaEmbedding(model_name="llama3")
-)
+# service_context = ServiceContext.from_defaults(
+#     llm=Ollama(model="llama3", request_timeout=120.0),
+#     embed_model=OllamaEmbedding(model_name="llama3")
+# )
 
-set_global_service_context(service_context)
+Settings.llm = Ollama(model="llama3", request_timeout=120.0)
+Settings.embed_model = OllamaEmbedding(model_name="llama3")
 
 
 def load_markdown_docs(filepath, hierarchical=True):
@@ -78,7 +81,7 @@ def get_query_engine_tool(
 ) -> QueryEngineTool:
     try:
         storage_context = StorageContext.from_defaults(
-            persist_dir=f"./data_{os.path.basename(directory)}"
+            persist_dir=f"./data/dev/{os.path.basename(directory)}_index"
         )
         index = load_index_from_storage(storage_context)
 
@@ -98,7 +101,7 @@ def get_query_engine_tool(
 
             index = VectorStoreIndex(leaf_nodes, storage_context=storage_context)
             index.storage_context.persist(
-                persist_dir=f"./data_{os.path.basename(directory)}"
+                persist_dir=f"./data/dev/{os.path.basename(directory)}_index"
             )
 
             retriever = AutoMergingRetriever(
@@ -109,7 +112,7 @@ def get_query_engine_tool(
             nodes = load_markdown_docs(directory, hierarchical=hierarchical)
             index = VectorStoreIndex(nodes)
             index.storage_context.persist(
-                persist_dir=f"./data_{os.path.basename(directory)}"
+                persist_dir=f"./data/dev/{os.path.basename(directory)}_index"
             )
 
             retriever = index.as_retriever(similarity_top_k=12)
@@ -126,7 +129,7 @@ def get_query_engine_tool(
 
 
 hierarchical_engine = get_query_engine_tool(
-    directory="../docs/core_modules/query_modules",
+    directory="data/docs/core_modules/query_modules",
     description="Useful for information on various query engines and retrievers, and anything related to querying data.",
     hierarchical=True,
 ).query_engine
@@ -134,7 +137,7 @@ hierarchical_engine = get_query_engine_tool(
 # rm -rf data/data_query_modules
 
 base_engine = get_query_engine_tool(
-    "../docs/core_modules/query_modules",
+    "data/docs/core_modules/query_modules",
     "Useful for information on various query engines and retrievers, and anything related to querying data.",
     hierarchical=False,
 ).query_engine
@@ -176,7 +179,7 @@ class LimitRetrievedNodesLength:
 # !rm -rf data/data_
 
 query_engine = get_query_engine_tool(
-    "../docs/core_modules/query_modules",
+    "data/docs/core_modules/query_modules",
     "Useful for information on various query engines and retrievers, and anything related to querying data.",
     hierarchical=True,
     postprocessors=[LimitRetrievedNodesLength(limit=3000)],
@@ -204,14 +207,14 @@ from llama_index.core.query_engine import SubQuestionQueryEngine, RouterQueryEng
 # NOTE: these descriptions are hand-written based on my understanding. We could have also
 # used an LLM to write these, maybe a future experiment.
 docs_directories = {
-    "../docs/community": "Useful for information on community integrations with other libraries, vector dbs, and frameworks.",
-    "../docs/core_modules/agent_modules": "Useful for information on data agents and tools for data agents.",
-    "../docs/core_modules/data_modules": "Useful for information on data, storage, indexing, and data processing modules.",
-    "../docs/core_modules/model_modules": "Useful for information on LLMs, embedding models, and prompts.",
-    "../docs/core_modules/query_modules": "Useful for information on various query engines and retrievers, and anything related to querying data.",
-    "../docs/core_modules/supporting_modules": "Useful for information on supporting modules, like callbacks, evaluators, and other supporting modules.",
-    "../docs/getting_started": "Useful for information on getting started with LlamaIndex.",
-    "../docs/development": "Useful for information on contributing to LlamaIndex development.",
+    "data/docs/community": "Useful for information on community integrations with other libraries, vector dbs, and frameworks.",
+    "data/docs/core_modules/agent_modules": "Useful for information on data agents and tools for data agents.",
+    "data/docs/core_modules/data_modules": "Useful for information on data, storage, indexing, and data processing modules.",
+    "data/docs/core_modules/model_modules": "Useful for information on LLMs, embedding models, and prompts.",
+    "data/docs/core_modules/query_modules": "Useful for information on various query engines and retrievers, and anything related to querying data.",
+    "data/docs/core_modules/supporting_modules": "Useful for information on supporting modules, like callbacks, evaluators, and other supporting modules.",
+    "data/docs/getting_started": "Useful for information on getting started with LlamaIndex.",
+    "data/docs/development": "Useful for information on contributing to LlamaIndex development.",
 }
 
 # Build query engine tools
@@ -234,6 +237,6 @@ query_engine_tools = [
 
 query_engine = RouterQueryEngine.from_defaults(
     query_engine_tools=query_engine_tools,
-    service_context=service_context,
+    # service_context=service_context,
     select_multi=True,
 )
