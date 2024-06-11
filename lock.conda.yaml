@@ -135,8 +135,10 @@ dependencies:
       - llama-index==0.10.0
       - llama-index-agent-openai==0.1.7
       - llama-index-core==0.10.43
+      - llama-index-embeddings-ollama==0.1.2
       - llama-index-embeddings-openai==0.1.10
       - llama-index-legacy==0.9.48
+      - llama-index-llms-ollama==0.1.5
       - llama-index-llms-openai==0.1.22
       - llama-index-multi-modal-llms-openai==0.1.6
       - llama-index-program-openai==0.1.6

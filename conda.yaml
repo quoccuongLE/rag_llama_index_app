@@ -17,3 +17,5 @@ dependencies:
     - sentence_transformers
     - InstructorEmbedding
     - spacy
+    - llama-index-llms-ollama
+    - llama-index-embeddings-ollama
