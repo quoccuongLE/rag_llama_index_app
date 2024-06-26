@@ -19,3 +19,4 @@ dependencies:
     - spacy
     - llama-index-llms-ollama
     - llama-index-embeddings-ollama
+    - sentencepiece

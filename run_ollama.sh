@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# sudo systemctl daemon-reload
+# sudo systemctl enable ollama
+# sudo systemctl disable ollama
+
+sudo docker run -d --rm --gpus all \
+    -v /usr/share/ollama/.ollama:/root/.ollama \
+    -p 11434:11434 \
+    ollama/ollama:latest

@@ -1,25 +1,27 @@
 import os
-from typing import Optional
-from llama_index.core import (Document, ServiceContext, Settings,
-                              SimpleDirectoryReader,
+from pathlib import Path
+from typing import Callable, List, Optional
+
+from llama_index.core import (Document, QueryBundle, ServiceContext, Settings,
+                              SimpleDirectoryReader, StorageContext,
+                              VectorStoreIndex, load_index_from_storage,
                               set_global_service_context)
-from llama_index.core.node_parser import (HierarchicalNodeParser,
-                                          SimpleNodeParser, get_leaf_nodes)
-from llama_index.core.schema import MetadataMode
-from llama_index.core import (StorageContext, VectorStoreIndex,
-                              load_index_from_storage)
-from llama_index.core.query_engine import RetrieverQueryEngine
+from llama_index.core.node_parser import (HierarchicalNodeParser, NodeParser,
+                                          SentenceSplitter, get_leaf_nodes)
+from llama_index.core.query_engine import (RetrieverQueryEngine,
+                                           RouterQueryEngine,
+                                           SubQuestionQueryEngine)
 from llama_index.core.retrievers import AutoMergingRetriever
+from llama_index.core.schema import Document, MetadataMode
 from llama_index.core.storage.docstore import SimpleDocumentStore
 from llama_index.core.tools import QueryEngineTool, ToolMetadata
-
-
-from llama_index.llms.openai import OpenAI
-from llama_index.llms.ollama import Ollama
+from llama_index.core.utils import print_text
 from llama_index.embeddings.ollama import OllamaEmbedding
-from llama_docs_utils.markdown_docs_reader import MarkdownDocsReader
-from llama_index.core import Settings
+from llama_index.llms.ollama import Ollama
+from llama_index.llms.openai import OpenAI
+from transformers import AutoTokenizer
 
+from llama_docs_utils.markdown_docs_reader import MarkdownDocsReader
 
 # Replace OpenAI GPT3.5 by Local llama 3 8B model
 # service_context = ServiceContext.from_defaults(
@@ -36,7 +38,7 @@ Settings.llm = Ollama(model="llama3", request_timeout=120.0)
 Settings.embed_model = OllamaEmbedding(model_name="llama3")
 
 
-def load_markdown_docs(filepath, hierarchical=True):
+def load_markdown_docs(filepath: Path, hierarchical: bool = True) -> List[NodeParser]:
     """Load markdown docs from a directory, excluding all other file types."""
     loader = SimpleDirectoryReader(
         input_dir=filepath,
@@ -71,13 +73,13 @@ def load_markdown_docs(filepath, hierarchical=True):
         nodes = node_parser.get_nodes_from_documents(documents)
         return nodes, get_leaf_nodes(nodes)
     else:
-        node_parser = SimpleNodeParser.from_defaults()
+        node_parser = SentenceSplitter.from_defaults()
         nodes = node_parser.get_nodes_from_documents(documents)
         return nodes
 
 
 def get_query_engine_tool(
-    directory: str, description: str, hierarchical: bool=True, postprocessors: Optional[callable]=None
+    directory: str, description: str, hierarchical: bool = True, postprocessors: Optional[callable]=None
 ) -> QueryEngineTool:
     try:
         storage_context = StorageContext.from_defaults(
@@ -143,23 +145,28 @@ base_engine = get_query_engine_tool(
 ).query_engine
 
 
-from llama_index.core import QueryBundle
-
 hierarchical_nodes = hierarchical_engine.retrieve(
     QueryBundle("How do I setup a query engine?")
 )
 base_nodes = base_engine.retrieve(QueryBundle("How do I setup a query engine?"))
 
 
-from typing import Callable, Optional
+# from transformers.models.llama.tokenization_llama import LlamaTokenizer
+# llama_tokenizer = LlamaTokenizer("../weight_llama/Meta-Llama-3-8B", legacy=False)
 
-from llama_index.core.utils import globals_helper, GlobalsHelper
+hf_token = os.environ.get("HF_TOKEN")
+tokenizer = AutoTokenizer.from_pretrained("meta-llama/Meta-Llama-3-8B-Instruct", token=hf_token)
+
+stopping_ids = [
+    tokenizer.eos_token_id,
+    tokenizer.convert_tokens_to_ids("<|eot_id|>"),
+]
 
 
 class LimitRetrievedNodesLength:
 
     def __init__(self, limit: int = 3000, tokenizer: Optional[Callable] = None):
-        self._tokenizer = tokenizer or GlobalsHelper.tokenizer
+        self._tokenizer = tokenizer
         self.limit = limit
 
     def postprocess_nodes(self, nodes, query_bundle: QueryBundle):
@@ -176,13 +183,12 @@ class LimitRetrievedNodesLength:
 
         return included_nodes
 
-# !rm -rf data/data_
 
 query_engine = get_query_engine_tool(
     "data/docs/core_modules/query_modules",
     "Useful for information on various query engines and retrievers, and anything related to querying data.",
     hierarchical=True,
-    postprocessors=[LimitRetrievedNodesLength(limit=3000)],
+    postprocessors=[LimitRetrievedNodesLength(limit=3000, tokenizer=tokenizer)],
 ).query_engine
 
 
@@ -190,18 +196,13 @@ hierarchical_nodes = query_engine.retrieve(
     QueryBundle("How do I setup a query engine?")
 )
 total_length = 0
+
 for node in hierarchical_nodes:
     total_length += len(
-        globals_helper.tokenizer(node.node.get_content(metadata_mode=MetadataMode.LLM))
+        tokenizer(node.node.get_content(metadata_mode=MetadataMode.LLM))
     )
 print(f"Total length: {total_length}")
 
-
-import nest_asyncio
-
-nest_asyncio.apply()
-
-from llama_index.core.query_engine import SubQuestionQueryEngine, RouterQueryEngine
 
 # Here we define the directories we want to index, as well as a description for each
 # NOTE: these descriptions are hand-written based on my understanding. We could have also
@@ -223,20 +224,27 @@ query_engine_tools = [
         directory,
         description,
         hierarchical=True,
-        postprocessors=[LimitRetrievedNodesLength(limit=3000)],
+        postprocessors=[LimitRetrievedNodesLength(limit=3000, tokenizer=tokenizer)],
     )
     for directory, description in docs_directories.items()
 ]
 
 # build top-level router -- this will route to multiple sub-indexes and aggregate results
-# query_engine = SubQuestionQueryEngine.from_defaults(
-#     query_engine_tools=query_engine_tools,
-#     service_context=service_context,
-#     verbose=False
-# )
+query_engine = SubQuestionQueryEngine.from_defaults(
+    query_engine_tools=query_engine_tools,
+    verbose=False
+)
 
 query_engine = RouterQueryEngine.from_defaults(
     query_engine_tools=query_engine_tools,
-    # service_context=service_context,
     select_multi=True,
 )
+
+
+response = query_engine.query(
+    "How do I setup a ChromaDB Vector Store? Give me a code sample please."
+)
+print_text(response)
+
+response = query_engine.query("How can I customize Document metadata?")
+print_text(response)
