@@ -5,7 +5,6 @@ from typing import List, Optional
 from llama_index.core import (
     SimpleDirectoryReader,
     VectorStoreIndex,
-    download_loader,
     RAKEKeywordTableIndex,
 )
 

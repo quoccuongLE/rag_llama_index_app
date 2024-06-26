@@ -14,6 +14,7 @@ dependencies:
     - fire
     - llama-index==0.10.50
     - langchain
+    - gradio
     - transformers
     - sentence_transformers
     - InstructorEmbedding
@@ -21,3 +22,4 @@ dependencies:
     - llama-index-llms-ollama
     - llama-index-embeddings-ollama
     - sentencepiece
+    - git+https://github.com/FlagOpen/FlagEmbedding.git
