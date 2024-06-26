@@ -69,7 +69,7 @@ llm = OpenAI(model="gpt-3.5-turbo-16k", temperature=0)
 service_context = ServiceContext.from_defaults(llm=llm, embed_model=instructor_embeddings, chunk_size=512)
 set_global_service_context(service_context)
 
-from example_utils import create_query_engine
+from tutorials.example_utils import create_query_engine
 from pathlib import Path
 
 query_engine = create_query_engine(Path("data") / "custom_emb_persist_dirs")

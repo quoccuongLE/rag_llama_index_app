@@ -9,7 +9,7 @@ openai.api_key = os.environ["OPENAI_API_KEY"]
 from llama_index.core import SimpleDirectoryReader
 from llama_index.llms.openai import OpenAI
 
-from example_utils import create_query_engine
+from tutorials.example_utils import create_query_engine
 
 query_engine = create_query_engine()
 response = query_engine.query("How do I install llama index?")

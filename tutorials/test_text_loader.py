@@ -34,7 +34,6 @@ tutorials_docs = load_markdown_docs("data/docs/end_to_end_tutorials")
 contributing_docs = load_markdown_docs("data/docs/development")
 
 print(agent_docs[5].get_content(metadata_mode=MetadataMode.ALL))
-# print(agent_docs[5].get_content(metadata_mode=MetadataMode.NONE))
 
 text_template = "Content Metadata:\n{metadata_str}\n\nContent:\n{content}"
 
