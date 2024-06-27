@@ -1,21 +1,28 @@
-from typing import List
+from typing import List, Optional, Tuple
+from pathlib import Path
+
 from .core import (
     LocalChatEngine,
-    LocalDataIngestion,
     LocalRAGModel,
     LocalEmbedding,
-    LocalVectorStore,
     get_system_prompt,
 )
-from llama_index.core import Settings
+from llama_index.core import (
+    Settings,
+    StorageContext,
+    load_index_from_storage,
+    VectorStoreIndex,
+)
 from llama_index.core.chat_engine.types import StreamingAgentChatResponse
 from llama_index.core.prompts import ChatMessage, MessageRole
 from llama_index.core.query_engine import RouterQueryEngine
-from .data_store import load_single_doc_into_nodes
+from .data_store import load_single_doc_into_nodes, data_indexing
+from .query_tools import get_query_engine_tool
+from .settings import RAGSettings
 
 
 class DocRetrievalAugmentedGen:
-    def __init__(self, host: str = "127.0.0.1") -> None:
+    def __init__(self, host: str = "127.0.0.1", setting: Optional[dict] = None) -> None:
         self._host = host
         self._language = "eng"
         self._model_name = ""
@@ -23,12 +30,50 @@ class DocRetrievalAugmentedGen:
         self._engine = LocalChatEngine(host=host)
         self._default_model = LocalRAGModel.set(self._model_name, host=host)
         self._query_engine = None
-        # self._ingestion = LocalDataIngestion()
-        # self._vector_store = LocalVectorStore(host=host)
+        self._setting = RAGSettings() or setting
         Settings.llm = LocalRAGModel.set(host=host)
         Settings.embed_model = LocalEmbedding.set(host=host)
         self._files_registry = []
-        self._single_query_engines = []
+        self._query_engine_tools = {}
+        self._file_storage = Path(setting.file_storage)
+        self._load_index_stores()
+        self._update_query_engine()
+
+    def _read_doc_and_load_index(
+        self, filename: Path, forced_indexing: bool = False
+    ) -> Tuple[VectorStoreIndex, StorageContext]:
+        try:
+            storage_context = StorageContext.from_defaults(
+                persist_dir=self._setting.index_store / f"{filename.stem}"
+            )
+            index = load_index_from_storage(storage_context)
+            success = True
+        except:
+            success = False
+
+        if forced_indexing or not success:
+            nodes = load_single_doc_into_nodes(filename)
+            index, storage_context = data_indexing(
+                dirname=filename.parent.name,
+                data_runtime=self._setting.index_store,
+                nodes=nodes,
+            )
+
+        return index, storage_context
+
+    def _load_index_stores(self, forced_indexing: bool = False):
+        for filename in self._file_storage.glob("**/*"):
+            if not filename.is_file():
+                continue
+            index, storage_context = self._read_doc_and_load_index(
+                filename=filename, forced_indexing=forced_indexing
+            )
+            self._query_engine_tools[filename.name] = get_query_engine_tool(
+                index=index,
+                storage_context=storage_context,
+                directory=filename.parent,
+                description="",
+            )
 
     @property
     def model_name(self) -> str:
@@ -67,9 +112,6 @@ class DocRetrievalAugmentedGen:
             llm=self._default_model, nodes=[], language=self._language
         )
 
-    def reset_documents(self):
-        self._ingestion.reset()
-
     def clear_conversation(self):
         self._query_engine.reset()
 
@@ -79,21 +121,30 @@ class DocRetrievalAugmentedGen:
             get_system_prompt(language=self._language, is_rag_prompt=False)
         )
 
-    def set_embed_model(self, model_name: str):
-        Settings.embed_model = LocalEmbedding.set(model_name, self._host)
-
-    def check_exist(self, model_name: str) -> bool:
-        return LocalRAGModel.check_model_exist(self._host, model_name)
-
-    def check_exist_embed(self, model_name: str) -> bool:
-        return LocalEmbedding.check_model_exist(self._host, model_name)
-
     def store_nodes(self, input_files: List[str] = None) -> None:
+        self.add_new_nodes(input_files=input_files)
+
+    def add_new_nodes(self, input_files: List[str] = None) -> None:
         for file in input_files:
             if file not in self._files_registry:
                 self._files_registry.append(file)
-                docs = load_single_doc_into_nodes(file)
-                data_indexing
+                _file = Path(file)
+                nodes = load_single_doc_into_nodes(_file)
+                index, storage_context = data_indexing(
+                    dirname=_file.parent.name,
+                    data_runtime=self._setting.index_store,
+                    nodes=nodes,
+                )
+                self._query_engine_tools[_file.name] = get_query_engine_tool(
+                    index=index,
+                    storage_context=storage_context,
+                    directory=_file.parent,
+                    description="",
+                )
+        self._query_engine = RouterQueryEngine.from_defaults(
+            query_engine_tools=self._query_engine_tools,
+            select_multi=False,
+        )
 
     def set_chat_mode(self, system_prompt: str | None = None):
         self.set_language(self._language)
