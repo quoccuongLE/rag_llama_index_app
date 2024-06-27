@@ -20,6 +20,9 @@ from .data_store import load_single_doc_into_nodes, data_indexing
 from .query_tools import get_query_engine_tool
 from .settings import RAGSettings
 
+from llama_index.embeddings.ollama import OllamaEmbedding
+from llama_index.llms.ollama import Ollama
+
 
 class DocRetrievalAugmentedGen:
     def __init__(self, host: str = "127.0.0.1", setting: Optional[dict] = None) -> None:
@@ -27,12 +30,22 @@ class DocRetrievalAugmentedGen:
         self._language = "eng"
         self._model_name = ""
         self._system_prompt = get_system_prompt("eng", is_rag_prompt=False)
-        self._engine = LocalChatEngine(host=host)
-        self._default_model = LocalRAGModel.set(self._model_name, host=host)
+        self._engine = Ollama(
+            model="llama3", system_prompt=self._system_prompt, request_timeout=120.0
+        )
+        self._default_model = Ollama(
+            model="llama3", system_prompt=self._system_prompt, request_timeout=120.0
+        )
         self._query_engine = None
         self._setting = RAGSettings() or setting
-        Settings.llm = LocalRAGModel.set(host=host)
-        Settings.embed_model = LocalEmbedding.set(host=host)
+
+        # Settings.llm = LocalRAGModel.set(host=host)
+        # Settings.embed_model = LocalEmbedding.set(host=host)
+        Settings.llm = Ollama(
+            model="llama3", system_prompt=self._system_prompt, request_timeout=120.0
+        )
+        Settings.embed_model = OllamaEmbedding(model_name="llama3")
+
         self._files_registry = []
         self._query_engine_tools = {}
         self._file_storage = Path(setting.file_storage)
