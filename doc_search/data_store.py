@@ -72,7 +72,8 @@ def load_single_doc_into_nodes(filename: Path) -> List[BaseNode]:
     reader = SimpleDirectoryReader(input_files=[filename])
     documents = reader.load_data()
     page_nodes = get_page_nodes(documents)
-    base_nodes, objects = node_parser.get_nodes_from_documents(documents)
+    nodes = node_parser.get_nodes_from_documents(documents)
+    base_nodes, objects = node_parser.get_nodes_and_objects(nodes)
     # For recursive_index
     return base_nodes + objects + page_nodes
 
@@ -98,3 +99,6 @@ def data_indexing(
         # Indexing
         index = VectorStoreIndex(nodes)
         index.storage_context.persist(persist_dir=data_runtime / dirname)
+        storage_context = None
+
+    return index, storage_context

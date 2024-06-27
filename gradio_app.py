@@ -5,12 +5,15 @@ import sys
 import time
 import gradio as gr
 from dataclasses import dataclass
-from typing import ClassVar, Dict, List
+from typing import ClassVar, Dict, List, Tuple
 from llama_index.core.chat_engine.types import StreamingAgentChatResponse
 
-from doc_search import RAGHelper
+from doc_search import DocRetrievalAugmentedGen
 from doc_search.logger import Logger
 
+LOG_FILE = "logging.log"
+DATA_DIR = "data/data"
+AVATAR_IMAGES = ["./assets/user.png", "./assets/bot.png"]
 
 JS_LIGHT_THEME = """
 function refresh() {
@@ -37,7 +40,7 @@ CSS = """
 
 @dataclass
 class DefaultElement:
-    DEFAULT_MESSAGE: ClassVar[dict] = {"text": ""}
+    DEFAULT_MESSAGE: ClassVar[dict] = {"text": "How do I fine-tune a LLama model?"}
     DEFAULT_MODEL: str = ""
     DEFAULT_HISTORY: ClassVar[list] = []
     DEFAULT_DOCUMENT: ClassVar[list] = []
@@ -85,7 +88,7 @@ class LLMResponse:
         response: StreamingAgentChatResponse,
     ):
         answer = []
-        for text in response.response_gen:
+        for text in response.response:
             answer.append(text)
             yield (
                 DefaultElement.DEFAULT_MESSAGE,
@@ -98,23 +101,30 @@ class LLMResponse:
             DefaultElement.COMPLETED_STATUS,
         )
 
+    # def stream_response(
+    #     self,
+    #     message: str,
+    #     history: List[List[str]],
+    #     response: StreamingAgentChatResponse,
+    # ):
+    #     return response
+
 
 class LocalChatbotUI:
     def __init__(
         self,
-        pipeline: RAGHelper,
         logger: Logger,
         host: str = "127.0.0.1",
-        data_dir: str = "data/doc_search",
-        # avatar_images: List[str] = ["./assets/user.png", "./assets/bot.png"],
+        data_dir: str = "data/doc_search/docs",
+        avatar_images: List[str] = ["./assets/user.png", "./assets/bot.png"],
     ):
-        self._pipeline = pipeline
+        self._rag_engine = DocRetrievalAugmentedGen(host=host)
         self._logger = logger
         self._host = host
         self._data_dir = os.path.join(os.getcwd(), data_dir)
-        # self._avatar_images = [
-        #     os.path.join(os.getcwd(), image) for image in avatar_images
-        # ]
+        self._avatar_images = [
+            os.path.join(os.getcwd(), image) for image in avatar_images
+        ]
         self._variant = "panel"
         self._llm_response = LLMResponse()
 
@@ -122,19 +132,20 @@ class LocalChatbotUI:
         self,
         chat_mode: str,
         message: Dict[str, str],
-        chatbot: List[List[str, str]],
-        progress=gr.Progress(track_tqdm=True),
+        chatbot: List,
+        progress=gr.Progress(track_tqdm=False),
     ):
-        if self._pipeline.get_model_name() in [None, ""]:
-            for m in self._llm_response.set_model():
-                yield m
-        elif message["text"] in [None, ""]:
+        # if self._rag_engine.get_model_name() in [None, ""]:
+        #     for m in self._llm_response.set_model():
+        #         yield m
+        if message["text"] in [None, ""]:
             for m in self._llm_response.empty_message():
                 yield m
         else:
             console = sys.stdout
             sys.stdout = self._logger
-            response = self._pipeline.query(chat_mode, message["text"], chatbot)
+            response = self._rag_engine.query(chat_mode, message["text"], chatbot)
+            # yield response
             for m in self._llm_response.stream_response(
                 message["text"], chatbot, response
             ):
@@ -142,7 +153,7 @@ class LocalChatbotUI:
             sys.stdout = console
 
     def _get_confirm_pull_model(self, model: str):
-        if (model in ["gpt-3.5-turbo", "gpt-4"]) or (self._pipeline.check_exist(model)):
+        if (model in ["gpt-3.5-turbo", "gpt-4"]) or (self._rag_engine.check_exist(model)):
             self._change_model(model)
             return (
                 gr.update(visible=False),
@@ -157,9 +168,9 @@ class LocalChatbotUI:
 
     def _pull_model(self, model: str, progress=gr.Progress(track_tqdm=True)):
         if (model not in ["gpt-3.5-turbo", "gpt-4"]) and not (
-            self._pipeline.check_exist(model)
+            self._rag_engine.check_exist(model)
         ):
-            response = self._pipeline.pull_model(model)
+            response = self._rag_engine.pull_model(model)
             if response.status_code == 200:
                 gr.Info(f"Pulling {model}!")
                 for data in response.iter_lines(chunk_size=1):
@@ -186,13 +197,13 @@ class LocalChatbotUI:
 
     def _change_model(self, model: str):
         if model not in [None, ""]:
-            self._pipeline.set_model_name(model)
-            self._pipeline.set_model()
-            self._pipeline.set_engine()
+            self._rag_engine.set_model_name(model)
+            self._rag_engine.set_model()
+            self._rag_engine.set_engine()
             gr.Info(f"Change model to {model}!")
         return DefaultElement.DEFAULT_STATUS
 
-    def _upload_document(self, document: List[str], list_files: List[str] | dict):
+    def _upload_document(self, document: List[str], list_files: Tuple[List[str], dict]):
         if document in [None, []]:
             if isinstance(list_files, list):
                 return (list_files, DefaultElement.DEFAULT_DOCUMENT)
@@ -209,7 +220,7 @@ class LocalChatbotUI:
                 return document
 
     def _reset_document(self):
-        self._pipeline.reset_documents()
+        self._rag_engine.reset_documents()
         gr.Info("Reset all documents!")
         return (
             DefaultElement.DEFAULT_DOCUMENT,
@@ -222,40 +233,40 @@ class LocalChatbotUI:
         return (gr.update(visible=visible), gr.update(visible=visible))
 
     def _processing_document(
-        self, document: List[str], progress=gr.Progress(track_tqdm=True)
+        self, document: List[str], progress=gr.Progress(track_tqdm=False)
     ):
         document = document or []
-        if self._host == "host.docker.internal":
+        if self._host == "127.0.0.1":
             input_files = []
             for file_path in document:
                 dest = os.path.join(self._data_dir, file_path.split("/")[-1])
                 shutil.move(src=file_path, dst=dest)
                 input_files.append(dest)
-            self._pipeline.store_nodes(input_files=input_files)
+            self._rag_engine.store_nodes(input_files=input_files)
         else:
-            self._pipeline.store_nodes(input_files=document)
-        self._pipeline.set_chat_mode()
+            self._rag_engine.store_nodes(input_files=document)
+        self._rag_engine.set_chat_mode()
         gr.Info("Processing Completed!")
-        return (self._pipeline.get_system_prompt(), DefaultElement.COMPLETED_STATUS)
+        return (self._rag_engine.get_system_prompt(), DefaultElement.COMPLETED_STATUS)
 
     def _change_system_prompt(self, sys_prompt: str):
-        self._pipeline.set_system_prompt(sys_prompt)
-        self._pipeline.set_chat_mode()
+        self._rag_engine.set_system_prompt(sys_prompt)
+        self._rag_engine.set_chat_mode()
         gr.Info("System prompt updated!")
 
     def _change_language(self, language: str):
-        self._pipeline.set_language(language)
-        self._pipeline.set_chat_mode()
+        self._rag_engine.set_language(language)
+        self._rag_engine.set_chat_mode()
         gr.Info(f"Change language to {language}")
 
-    def _undo_chat(self, history: List[List[str, str]]):
+    def _undo_chat(self, history: List):
         if len(history) > 0:
             history.pop(-1)
             return history
         return DefaultElement.DEFAULT_HISTORY
 
     def _reset_chat(self):
-        self._pipeline.reset_conversation()
+        self._rag_engine.reset_conversation()
         gr.Info("Reset chat!")
         return (
             DefaultElement.DEFAULT_MESSAGE,
@@ -265,7 +276,7 @@ class LocalChatbotUI:
         )
 
     def _clear_chat(self):
-        self._pipeline.clear_conversation()
+        self._rag_engine.clear_conversation()
         gr.Info("Clear chat!")
         return (
             DefaultElement.DEFAULT_MESSAGE,
@@ -362,7 +373,7 @@ class LocalChatbotUI:
 
                         with gr.Row(variant=self._variant):
                             chat_mode = gr.Dropdown(
-                                choices=["chat", "QA"],
+                                choices=["QA"],
                                 value="QA",
                                 min_width=50,
                                 show_label=False,
@@ -395,7 +406,7 @@ class LocalChatbotUI:
                     with gr.Column():
                         system_prompt = gr.Textbox(
                             label="System Prompt",
-                            value=self._pipeline.get_system_prompt(),
+                            value=self._rag_engine.get_system_prompt(),
                             interactive=True,
                             lines=10,
                             max_lines=50,
@@ -474,3 +485,14 @@ class LocalChatbotUI:
             demo.load(self._welcome, outputs=[message, chatbot, status])
 
         return demo
+
+
+if __name__ == "__main__":
+    logger = Logger(LOG_FILE)
+    logger.reset_logs()
+    ui = LocalChatbotUI(
+        logger=logger,
+        host="127.0.0.1"
+    )
+
+    ui.build().launch(share=False, server_name="127.0.0.1", debug=False, show_api=False)

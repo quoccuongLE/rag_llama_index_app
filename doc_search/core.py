@@ -1,12 +1,7 @@
 from typing import List, Optional, Tuple
 from pathlib import Path
 
-from .core import (
-    LocalChatEngine,
-    LocalRAGModel,
-    LocalEmbedding,
-    get_system_prompt,
-)
+from .prompt import get_system_prompt
 from llama_index.core import (
     Settings,
     StorageContext,
@@ -48,7 +43,7 @@ class DocRetrievalAugmentedGen:
 
         self._files_registry = []
         self._query_engine_tools = {}
-        self._file_storage = Path(setting.file_storage)
+        self._file_storage = Path(self._setting.file_storage)
         self._load_index_stores()
         self._update_query_engine()
 
@@ -68,7 +63,7 @@ class DocRetrievalAugmentedGen:
             nodes = load_single_doc_into_nodes(filename)
             index, storage_context = data_indexing(
                 dirname=filename.parent.name,
-                data_runtime=self._setting.index_store,
+                data_runtime=Path(self._setting.index_store),
                 nodes=nodes,
             )
 
@@ -85,7 +80,7 @@ class DocRetrievalAugmentedGen:
                 index=index,
                 storage_context=storage_context,
                 directory=filename.parent,
-                description="",
+                description="Useful for information on how to create first simple Llama-index applications",
             )
 
     @property
@@ -107,16 +102,14 @@ class DocRetrievalAugmentedGen:
     def get_system_prompt(self):
         return self._system_prompt
 
-    def set_system_prompt(self, system_prompt: str | None = None):
+    def set_system_prompt(self, system_prompt: Optional[str] = None):
         self._system_prompt = system_prompt or get_system_prompt(
             language=self._language, is_rag_prompt=self._ingestion.check_nodes_exist()
         )
 
     def set_model(self):
-        Settings.llm = LocalRAGModel.set(
-            model_name=self._model_name,
-            system_prompt=self._system_prompt,
-            host=self._host,
+        Settings.llm = Ollama(
+            model="llama3", system_prompt=self._system_prompt, request_timeout=120.0
         )
         self._default_model = Settings.llm
 
@@ -145,7 +138,7 @@ class DocRetrievalAugmentedGen:
                 nodes = load_single_doc_into_nodes(_file)
                 index, storage_context = data_indexing(
                     dirname=_file.parent.name,
-                    data_runtime=self._setting.index_store,
+                    data_runtime=Path(self._setting.index_store),
                     nodes=nodes,
                 )
                 self._query_engine_tools[_file.name] = get_query_engine_tool(
@@ -159,7 +152,7 @@ class DocRetrievalAugmentedGen:
             select_multi=False,
         )
 
-    def set_chat_mode(self, system_prompt: str | None = None):
+    def set_chat_mode(self, system_prompt: Optional[str] = None):
         self.set_language(self._language)
         self.set_system_prompt(system_prompt)
         self.set_model()
@@ -182,9 +175,16 @@ class DocRetrievalAugmentedGen:
 
     def _update_query_engine(self):
         self._query_engine = RouterQueryEngine.from_defaults(
-            query_engine_tools=self._query_engine_tools,
+            query_engine_tools=list(self._query_engine_tools.values()),
             select_multi=False,
         )
 
-    def query(self, message: str) -> StreamingAgentChatResponse:
-        return self._query_engine.query(message)
+    def query(
+        self, mode: str, message: str, chatbot: List[List[str]]
+    ) -> StreamingAgentChatResponse:
+        if mode == "chat":
+            history = self.get_history(chatbot)
+            return self._query_engine.stream_chat(message, history)
+        else:
+            # self._query_engine.reset()
+            return self._query_engine.query(message)
