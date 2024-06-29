@@ -26,7 +26,8 @@ def get_query_engine_tool(
         node_postprocessors=postprocessors or [],
     )
 
-    return QueryEngineTool(
-        query_engine=query_engine,
-        metadata=ToolMetadata(name=directory, description=description),
-    )
+    # return QueryEngineTool(
+    #     query_engine=query_engine,
+    #     metadata=ToolMetadata(name=directory, description=description),
+    # )
+    return query_engine

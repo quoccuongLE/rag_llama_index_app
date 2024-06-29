@@ -38,6 +38,7 @@ CSS = """
     }
 """
 
+
 @dataclass
 class DefaultElement:
     DEFAULT_MESSAGE: ClassVar[dict] = {"text": "How do I fine-tune a LLama model?"}
@@ -88,7 +89,12 @@ class LLMResponse:
         response: StreamingAgentChatResponse,
     ):
         answer = []
-        for text in response.response:
+        _response = (
+            response.response_gen
+            if isinstance(response, StreamingAgentChatResponse)
+            else response.response
+        )
+        for text in _response:
             answer.append(text)
             yield (
                 DefaultElement.DEFAULT_MESSAGE,
@@ -100,14 +106,6 @@ class LLMResponse:
             history + [[message, "".join(answer)]],
             DefaultElement.COMPLETED_STATUS,
         )
-
-    # def stream_response(
-    #     self,
-    #     message: str,
-    #     history: List[List[str]],
-    #     response: StreamingAgentChatResponse,
-    # ):
-    #     return response
 
 
 class LocalChatbotUI:
@@ -135,9 +133,6 @@ class LocalChatbotUI:
         chatbot: List,
         progress=gr.Progress(track_tqdm=False),
     ):
-        # if self._rag_engine.get_model_name() in [None, ""]:
-        #     for m in self._llm_response.set_model():
-        #         yield m
         if message["text"] in [None, ""]:
             for m in self._llm_response.empty_message():
                 yield m
@@ -145,7 +140,7 @@ class LocalChatbotUI:
             console = sys.stdout
             sys.stdout = self._logger
             response = self._rag_engine.query(chat_mode, message["text"], chatbot)
-            # yield response
+            # Yield response
             for m in self._llm_response.stream_response(
                 message["text"], chatbot, response
             ):
@@ -153,7 +148,9 @@ class LocalChatbotUI:
             sys.stdout = console
 
     def _get_confirm_pull_model(self, model: str):
-        if (model in ["gpt-3.5-turbo", "gpt-4"]) or (self._rag_engine.check_exist(model)):
+        if (model in ["gpt-3.5-turbo", "gpt-4"]) or (
+            self._rag_engine.check_exist(model)
+        ):
             self._change_model(model)
             return (
                 gr.update(visible=False),
@@ -250,12 +247,12 @@ class LocalChatbotUI:
         return (self._rag_engine.get_system_prompt(), DefaultElement.COMPLETED_STATUS)
 
     def _change_system_prompt(self, sys_prompt: str):
-        self._rag_engine.set_system_prompt(sys_prompt)
+        # self._rag_engine.set_system_prompt(sys_prompt)
         self._rag_engine.set_chat_mode()
         gr.Info("System prompt updated!")
 
     def _change_language(self, language: str):
-        self._rag_engine.set_language(language)
+        self._rag_engine.language(language)
         self._rag_engine.set_chat_mode()
         gr.Info(f"Change language to {language}")
 
@@ -293,6 +290,9 @@ class LocalChatbotUI:
         for m in self._llm_response.welcome():
             yield m
 
+    def _update_file_list(self):
+        return gr.Dropdown(choices=list(self._rag_engine._query_engine_tools.keys()))
+
     def build(self):
         with gr.Blocks(
             theme=gr.themes.Soft(primary_hue="slate"),
@@ -316,28 +316,36 @@ class LocalChatbotUI:
                                 value="eng",
                                 interactive=True,
                             )
-                            model = gr.Dropdown(
-                                label="Choose Model:",
-                                choices=[
-                                    "llama3-chatqa:8b-v1.5-q8_0",
-                                    "llama3-chatqa:8b-v1.5-q6_K",
-                                    "llama3:8b-instruct-q8_0",
-                                    "starling-lm:7b-beta-q8_0",
-                                    "mixtral:instruct",
-                                    "nous-hermes2:10.7b-solar-q4_K_M",
-                                    "codeqwen:7b-chat-v1.5-q5_1",
-                                ],
+                            # model = gr.Dropdown(
+                            #     label="Choose Model:",
+                            #     choices=[
+                            #         "llama3-chatqa:8b-v1.5-q8_0",
+                            #         "llama3-chatqa:8b-v1.5-q6_K",
+                            #         "llama3:8b-instruct-q8_0",
+                            #         "starling-lm:7b-beta-q8_0",
+                            #         "mixtral:instruct",
+                            #         "nous-hermes2:10.7b-solar-q4_K_M",
+                            #         "codeqwen:7b-chat-v1.5-q5_1",
+                            #     ],
+                            #     value=None,
+                            #     interactive=True,
+                            #     allow_custom_value=True,
+                            # )
+                            # with gr.Row():
+                            #     pull_btn = gr.Button(
+                            #         value="Pull Model", visible=False, min_width=50
+                            #     )
+                            #     cancel_btn = gr.Button(
+                            #         value="Cancel", visible=False, min_width=50
+                            #     )
+
+                            file_list = gr.Dropdown(
+                                label="Choose file:",
+                                choices=list(self._rag_engine._query_engine_tools.keys()),
                                 value=None,
                                 interactive=True,
                                 allow_custom_value=True,
                             )
-                            with gr.Row():
-                                pull_btn = gr.Button(
-                                    value="Pull Model", visible=False, min_width=50
-                                )
-                                cancel_btn = gr.Button(
-                                    value="Cancel", visible=False, min_width=50
-                                )
 
                             documents = gr.Files(
                                 label="Add Documents",
@@ -368,7 +376,7 @@ class LocalChatbotUI:
                             scale=2,
                             show_copy_button=True,
                             bubble_full_width=False,
-                            # avatar_images=self._avatar_images,
+                            avatar_images=self._avatar_images,
                         )
 
                         with gr.Row(variant=self._variant):
@@ -427,10 +435,10 @@ class LocalChatbotUI:
                     )
 
             clear_btn.click(self._clear_chat, outputs=[message, chatbot, status])
-            cancel_btn.click(
-                lambda: (gr.update(visible=False), gr.update(visible=False), None),
-                outputs=[pull_btn, cancel_btn, model],
-            )
+            # cancel_btn.click(
+            #     lambda: (gr.update(visible=False), gr.update(visible=False), None),
+            #     outputs=[pull_btn, cancel_btn, model],
+            # )
             undo_btn.click(self._undo_chat, inputs=[chatbot], outputs=[chatbot])
             reset_btn.click(
                 self._reset_chat, outputs=[message, chatbot, documents, status]
@@ -466,7 +474,9 @@ class LocalChatbotUI:
                 self._show_document_btn,
                 inputs=[documents],
                 outputs=[upload_doc_btn, reset_doc_btn],
-            )
+            ).then(self._update_file_list, outputs=[file_list])
+
+            file_list.change(self._rag_engine.select_query_engine, inputs=[file_list])
 
             sys_prompt_btn.click(self._change_system_prompt, inputs=[system_prompt])
             ui_btn.click(
@@ -490,9 +500,6 @@ class LocalChatbotUI:
 if __name__ == "__main__":
     logger = Logger(LOG_FILE)
     logger.reset_logs()
-    ui = LocalChatbotUI(
-        logger=logger,
-        host="127.0.0.1"
-    )
+    ui = LocalChatbotUI(logger=logger, host="127.0.0.1")
 
     ui.build().launch(share=False, server_name="127.0.0.1", debug=False, show_api=False)

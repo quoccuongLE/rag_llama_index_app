@@ -155,13 +155,13 @@ def main():
     #     hierarchical=False,
     # ).query_engine
 
-    hf_token = os.environ.get("HF_TOKEN")
-    tokenizer = AutoTokenizer.from_pretrained("meta-llama/Meta-Llama-3-8B-Instruct", token=hf_token)
+    # hf_token = os.environ.get("HF_TOKEN")
+    # tokenizer = AutoTokenizer.from_pretrained("meta-llama/Meta-Llama-3-8B-Instruct", token=hf_token)
 
-    stopping_ids = [
-        tokenizer.eos_token_id,
-        tokenizer.convert_tokens_to_ids("<|eot_id|>"),
-    ]
+    # stopping_ids = [
+    #     tokenizer.eos_token_id,
+    #     tokenizer.convert_tokens_to_ids("<|eot_id|>"),
+    # ]
 
     docs_descriptions = {"data/dev_rag/docs": "Useful for information on how to use the first simple Llama-index applications"}
     query_engine_tools = [
@@ -170,7 +170,7 @@ def main():
             description=des,
             data_runtime=data_runtime,
             hierarchical=False,
-            postprocessors=[LimitRetrievedNodesLength(limit=3000, tokenizer=tokenizer)],
+            # postprocessors=[LimitRetrievedNodesLength(limit=3000, tokenizer=tokenizer)],
         ) for d, des in docs_descriptions.items()
     ]
     query_engine = RouterQueryEngine.from_defaults(

@@ -34,8 +34,6 @@ class DocRetrievalAugmentedGen:
         self._query_engine = None
         self._setting = RAGSettings() or setting
 
-        # Settings.llm = LocalRAGModel.set(host=host)
-        # Settings.embed_model = LocalEmbedding.set(host=host)
         Settings.llm = Ollama(
             model="llama3", system_prompt=self._system_prompt, request_timeout=120.0
         )
@@ -45,7 +43,8 @@ class DocRetrievalAugmentedGen:
         self._query_engine_tools = {}
         self._file_storage = Path(self._setting.file_storage)
         self._load_index_stores()
-        self._update_query_engine()
+        # self._update_query_engine()
+        self.select_query_engine(list(self._query_engine_tools.keys())[0])
 
     def _read_doc_and_load_index(
         self, filename: Path, forced_indexing: bool = False
@@ -62,7 +61,7 @@ class DocRetrievalAugmentedGen:
         if forced_indexing or not success:
             nodes = load_single_doc_into_nodes(filename)
             index, storage_context = data_indexing(
-                dirname=filename.parent.name,
+                dirname=filename.name,
                 data_runtime=Path(self._setting.index_store),
                 nodes=nodes,
             )
@@ -102,9 +101,12 @@ class DocRetrievalAugmentedGen:
     def get_system_prompt(self):
         return self._system_prompt
 
+    def check_nodes_exist(self):
+        return len(self._query_engine_tools.values()) > 0
+
     def set_system_prompt(self, system_prompt: Optional[str] = None):
         self._system_prompt = system_prompt or get_system_prompt(
-            language=self._language, is_rag_prompt=self._ingestion.check_nodes_exist()
+            language=self._language, is_rag_prompt=self.check_nodes_exist()
         )
 
     def set_model(self):
@@ -137,7 +139,7 @@ class DocRetrievalAugmentedGen:
                 _file = Path(file)
                 nodes = load_single_doc_into_nodes(_file)
                 index, storage_context = data_indexing(
-                    dirname=_file.parent.name,
+                    dirname=_file.name,
                     data_runtime=Path(self._setting.index_store),
                     nodes=nodes,
                 )
@@ -147,23 +149,22 @@ class DocRetrievalAugmentedGen:
                     directory=_file.parent,
                     description="",
                 )
-        self._query_engine = RouterQueryEngine.from_defaults(
-            query_engine_tools=self._query_engine_tools,
-            select_multi=False,
-        )
+
+    def select_query_engine(self, query_engine_name: str):
+        self._query_engine = self._query_engine_tools[query_engine_name]
 
     def set_chat_mode(self, system_prompt: Optional[str] = None):
-        self.set_language(self._language)
+        self.language = self._language
         self.set_system_prompt(system_prompt)
         self.set_model()
-        self.set_engine()
+        # self.set_engine()
 
-    def set_engine(self):
-        self._query_engine = self._engine.set_engine(
-            llm=self._default_model,
-            nodes=self._ingestion.get_ingested_nodes(),
-            language=self._language,
-        )
+    # def set_engine(self):
+    #     self._query_engine = self._engine.set_engine(
+    #         llm=self._default_model,
+    #         nodes=self._ingestion.get_ingested_nodes(),
+    #         language=self._language,
+    #     )
 
     def get_history(self, chatbot: List[List[str]]):
         history = []
@@ -188,3 +189,4 @@ class DocRetrievalAugmentedGen:
         else:
             # self._query_engine.reset()
             return self._query_engine.query(message)
+            # return self._query_engine(message)

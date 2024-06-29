@@ -14,7 +14,10 @@ from llama_index.core.node_parser import (
 )
 from llama_index.core.schema import Document, MetadataMode, BaseNode, TextNode
 
-from llama_index.core.node_parser import MarkdownElementNodeParser
+from llama_index.core.node_parser import (
+    MarkdownElementNodeParser,
+    MarkdownNodeParser,
+)
 
 
 def load_docs(filepath: Path, hierarchical: bool = True) -> List[NodeParser]:
@@ -53,7 +56,8 @@ def load_docs(filepath: Path, hierarchical: bool = True) -> List[NodeParser]:
 
 
 def load_single_doc_into_nodes(filename: Path) -> List[BaseNode]:
-    node_parser = MarkdownElementNodeParser()
+    # node_parser = MarkdownElementNodeParser()
+    node_parser = MarkdownNodeParser()
 
     def get_page_nodes(docs, separator="\n---\n"):
         """Split each document into page node, by separator."""
@@ -73,9 +77,16 @@ def load_single_doc_into_nodes(filename: Path) -> List[BaseNode]:
     documents = reader.load_data()
     page_nodes = get_page_nodes(documents)
     nodes = node_parser.get_nodes_from_documents(documents)
-    base_nodes, objects = node_parser.get_nodes_and_objects(nodes)
-    # For recursive_index
-    return base_nodes + objects + page_nodes
+    if isinstance(node_parser, MarkdownElementNodeParser):
+        base_nodes, objects = node_parser.get_nodes_and_objects(nodes)
+        # For recursive_index
+        return base_nodes + objects + page_nodes
+    else:
+        base_nodes = []
+        for node in nodes:
+            base_nodes.extend(node_parser.get_nodes_from_node(node))
+        # base_nodes = [node_parser.get_nodes_from_node(node) for node in nodes]
+        return base_nodes + page_nodes
 
 
 def data_indexing(
