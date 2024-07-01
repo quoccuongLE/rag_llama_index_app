@@ -21,5 +21,6 @@ dependencies:
     - spacy
     - llama-index-llms-ollama
     - llama-index-embeddings-ollama
+    - llama-index-vector-stores-milvus
     - sentencepiece
     - git+https://github.com/FlagOpen/FlagEmbedding.git

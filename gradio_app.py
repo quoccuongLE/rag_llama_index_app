@@ -41,7 +41,8 @@ CSS = """
 
 @dataclass
 class DefaultElement:
-    DEFAULT_MESSAGE: ClassVar[dict] = {"text": "How do I fine-tune a LLama model?"}
+    # DEFAULT_MESSAGE: ClassVar[dict] = {"text": "How do I fine-tune a LLama model?"}
+    DEFAULT_MESSAGE: ClassVar[dict] = {"text": ""}
     DEFAULT_MODEL: str = ""
     DEFAULT_HISTORY: ClassVar[list] = []
     DEFAULT_DOCUMENT: ClassVar[list] = []
@@ -194,7 +195,7 @@ class LocalChatbotUI:
 
     def _change_model(self, model: str):
         if model not in [None, ""]:
-            self._rag_engine.set_model_name(model)
+            self._rag_engine.model_name = model
             self._rag_engine.set_model()
             self._rag_engine.set_engine()
             gr.Info(f"Change model to {model}!")
@@ -217,7 +218,7 @@ class LocalChatbotUI:
                 return document
 
     def _reset_document(self):
-        self._rag_engine.reset_documents()
+        # self._rag_engine.reset_documents()
         gr.Info("Reset all documents!")
         return (
             DefaultElement.DEFAULT_DOCUMENT,
@@ -244,17 +245,21 @@ class LocalChatbotUI:
             self._rag_engine.store_nodes(input_files=document)
         self._rag_engine.set_chat_mode()
         gr.Info("Processing Completed!")
-        return (self._rag_engine.get_system_prompt(), DefaultElement.COMPLETED_STATUS)
+        return (self._rag_engine.system_prompt, DefaultElement.COMPLETED_STATUS)
 
     def _change_system_prompt(self, sys_prompt: str):
-        # self._rag_engine.set_system_prompt(sys_prompt)
+        self._rag_engine.system_prompt = sys_prompt
         self._rag_engine.set_chat_mode()
         gr.Info("System prompt updated!")
 
     def _change_language(self, language: str):
-        self._rag_engine.language(language)
-        self._rag_engine.set_chat_mode()
+        self._rag_engine.language = language
+        self._rag_engine.set_chat_mode(language=language)
         gr.Info(f"Change language to {language}")
+
+    def _change_chat_mode(self, chat_mode: str):
+        self._rag_engine.set_chat_mode(chat_mode=chat_mode)
+        gr.Info(f"Change chat mode to {chat_mode}")
 
     def _undo_chat(self, history: List):
         if len(history) > 0:
@@ -341,7 +346,9 @@ class LocalChatbotUI:
 
                             file_list = gr.Dropdown(
                                 label="Choose file:",
-                                choices=list(self._rag_engine._query_engine_tools.keys()),
+                                choices=list(
+                                    self._rag_engine._query_engine_tools.keys()
+                                ),
                                 value=None,
                                 interactive=True,
                                 allow_custom_value=True,
@@ -381,7 +388,7 @@ class LocalChatbotUI:
 
                         with gr.Row(variant=self._variant):
                             chat_mode = gr.Dropdown(
-                                choices=["QA"],
+                                choices=["QA", "chat", "segmantic search"],
                                 value="QA",
                                 min_width=50,
                                 show_label=False,
@@ -414,7 +421,7 @@ class LocalChatbotUI:
                     with gr.Column():
                         system_prompt = gr.Textbox(
                             label="System Prompt",
-                            value=self._rag_engine.get_system_prompt(),
+                            value=self._rag_engine.system_prompt,
                             interactive=True,
                             lines=10,
                             max_lines=50,
@@ -460,7 +467,12 @@ class LocalChatbotUI:
                 inputs=[chat_mode, message, chatbot],
                 outputs=[message, chatbot, status],
             )
-            language.change(self._change_language, inputs=[language])
+            chat_mode.change(self._change_chat_mode, inputs=[chat_mode]).then(
+                self._rag_engine.reset_conversation
+            ).then(self._clear_chat, outputs=[message, chatbot, status])
+            language.change(self._change_language, inputs=[language]).then(
+                self._clear_chat, outputs=[message, chatbot, status]
+            )
             # model.change(
             #     self._get_confirm_pull_model,
             #     inputs=[model],

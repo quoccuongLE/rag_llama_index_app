@@ -164,3 +164,4 @@ tmp/
 .venv/
 .vscode/
 weights/
+*.db
