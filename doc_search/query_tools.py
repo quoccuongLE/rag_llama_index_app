@@ -14,17 +14,25 @@ from llama_index.vector_stores.milvus import MilvusVectorStore
 #     BaseRetriever,
 #     QueryFusionRetriever)
 
+from enum import Enum
+
+
+class ChatMode(str, Enum):
+    CHAT = "chat"
+    QA = "QA"
+    SEMANTIC_SEARCH = "semantic search"
+
 
 def get_query_engine_tool(
     index: VectorStoreIndex,
     storage_context: StorageContext,
     hierarchical: bool = False,
-    chat_mode: str = "QA",
+    chat_mode: ChatMode = ChatMode.QA,
     chat_token_limit: int = 4000,
     postprocessors: Optional[list] = None,
     **kwargs,
 ) -> QueryEngineTool:
-    if chat_mode == "QA":
+    if chat_mode == ChatMode.QA:
         if hierarchical:
             retriever = AutoMergingRetriever(
                 index.as_retriever(similarity_top_k=6), storage_context=storage_context
@@ -38,13 +46,16 @@ def get_query_engine_tool(
         )
 
         return query_engine
-        # return QueryEngineTool(
-        #     query_engine=query_engine,
-        #     metadata=ToolMetadata(**kwargs),
-        # )
-    elif chat_mode == "chat":
+
+    elif chat_mode == ChatMode.CHAT:
         llm = llm_from_settings_or_context(settings=Settings, context=None)
         return SimpleChatEngine.from_defaults(
             llm=llm,
             memory=ChatMemoryBuffer(token_limit=chat_token_limit),
+        )
+    elif chat_mode == ChatMode.SEMANTIC_SEARCH:
+        return CitationQueryEngine.from_args(
+            index,
+            citation_chunk_size=256,
+            similarity_top_k=5,
         )
