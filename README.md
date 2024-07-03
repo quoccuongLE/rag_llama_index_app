@@ -42,4 +42,4 @@ The gradio app is accessible at https://127.0.0.1:7860 or https://localhost:7860
 
 # Acknowledgement
 
-This UI of the project is inspired by the work https://github.com/datvodinh/rag-chatbot/. I am graful for your great project!
+This project is inspired by the work https://github.com/datvodinh/rag-chatbot/. I am grateful for your awesome project!
