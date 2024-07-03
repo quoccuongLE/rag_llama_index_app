@@ -11,6 +11,7 @@ from llama_index.core.chat_engine.types import StreamingAgentChatResponse
 from doc_search import DocRetrievalAugmentedGen
 from doc_search.logger import Logger
 
+
 LOG_FILE = "logging.log"
 DATA_DIR = "data/data"
 AVATAR_IMAGES = ["./assets/user.png", "./assets/bot.png"]
@@ -42,6 +43,7 @@ CSS = """
 @dataclass
 class DefaultElement:
     # DEFAULT_MESSAGE: ClassVar[dict] = {"text": "How do I fine-tune a LLama model?"}
+    # DEFAULT_MESSAGE: ClassVar[dict] = {"text": "Tell me about the repatriation policy in the insurance contract."}
     DEFAULT_MESSAGE: ClassVar[dict] = {"text": ""}
     DEFAULT_MODEL: str = ""
     DEFAULT_HISTORY: ClassVar[list] = []
@@ -261,6 +263,10 @@ class LocalChatbotUI:
         self._rag_engine.set_chat_mode(chat_mode=chat_mode)
         gr.Info(f"Change chat mode to {chat_mode}")
 
+    def _change_selected_file(self, filename: str):
+        self._rag_engine._query_engine_name = filename
+        self._rag_engine.set_chat_mode()
+
     def _undo_chat(self, history: List):
         if len(history) > 0:
             history.pop(-1)
@@ -296,7 +302,7 @@ class LocalChatbotUI:
             yield m
 
     def _update_file_list(self):
-        return gr.Dropdown(choices=list(self._rag_engine._query_engine_tools.keys()))
+        return gr.Dropdown(choices=self._rag_engine._files_registry)
 
     def build(self):
         with gr.Blocks(
@@ -347,7 +353,7 @@ class LocalChatbotUI:
                             file_list = gr.Dropdown(
                                 label="Choose file:",
                                 choices=list(
-                                    self._rag_engine._query_engine_tools.keys()
+                                    self._rag_engine._files_registry
                                 ),
                                 value=None,
                                 interactive=True,
@@ -388,7 +394,7 @@ class LocalChatbotUI:
 
                         with gr.Row(variant=self._variant):
                             chat_mode = gr.Dropdown(
-                                choices=["QA", "chat", "segmantic search"],
+                                choices=["QA", "chat", "semantic search"],
                                 value="QA",
                                 min_width=50,
                                 show_label=False,
@@ -488,7 +494,7 @@ class LocalChatbotUI:
                 outputs=[upload_doc_btn, reset_doc_btn],
             ).then(self._update_file_list, outputs=[file_list])
 
-            file_list.change(self._rag_engine.select_query_engine, inputs=[file_list])
+            file_list.change(self._change_selected_file, inputs=[file_list])
 
             sys_prompt_btn.click(self._change_system_prompt, inputs=[system_prompt])
             ui_btn.click(
