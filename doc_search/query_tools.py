@@ -75,9 +75,11 @@ class RawBaseSynthesizer(Refine):
             page_number = node.metadata.get("page_label", "n/a")
             text += "".join(
                 [
-                    f"({i}) - Page {page_number} \n",
+                    f"({i}) - Page {page_number} \nText:\t",
                     extract,
-                    "...\n*--*--*--*--*--*--*--*--*\n",
+                    "...\n*----*----*----*----*\n",
+                    f"Metadata:\t {node.node.metadata}",
+                    f"Score:\t {node.score:.3f}"
                 ]
             )
         return Response(

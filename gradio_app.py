@@ -150,57 +150,18 @@ class LocalChatbotUI:
                 yield m
             sys.stdout = console
 
-    def _get_confirm_pull_model(self, model: str):
-        if (model in ["gpt-3.5-turbo", "gpt-4"]) or (
-            self._rag_engine.check_exist(model)
-        ):
-            self._change_model(model)
-            return (
-                gr.update(visible=False),
-                gr.update(visible=False),
-                DefaultElement.DEFAULT_STATUS,
-            )
-        return (
-            gr.update(visible=True),
-            gr.update(visible=True),
-            DefaultElement.CONFIRM_PULL_MODEL_STATUS,
-        )
-
-    def _pull_model(self, model: str, progress=gr.Progress(track_tqdm=True)):
-        if (model not in ["gpt-3.5-turbo", "gpt-4"]) and not (
-            self._rag_engine.check_exist(model)
-        ):
-            response = self._rag_engine.pull_model(model)
-            if response.status_code == 200:
-                gr.Info(f"Pulling {model}!")
-                for data in response.iter_lines(chunk_size=1):
-                    data = json.loads(data)
-                    if "completed" in data.keys() and "total" in data.keys():
-                        progress(data["completed"] / data["total"], desc="Downloading")
-                    else:
-                        progress(0.0)
-            else:
-                gr.Warning(f"Model {model} doesn't exist!")
-                return (
-                    DefaultElement.DEFAULT_MESSAGE,
-                    DefaultElement.DEFAULT_HISTORY,
-                    DefaultElement.PULL_MODEL_FAIL_STATUS,
-                    DefaultElement.DEFAULT_MODEL,
-                )
-
-        return (
-            DefaultElement.DEFAULT_MESSAGE,
-            DefaultElement.DEFAULT_HISTORY,
-            DefaultElement.PULL_MODEL_SCUCCESS_STATUS,
-            model,
-        )
-
     def _change_model(self, model: str):
         if model not in [None, ""]:
-            self._rag_engine.model_name = model
-            self._rag_engine.set_model()
-            self._rag_engine.set_engine()
+            self._rag_engine.model = model
+            self._rag_engine.reset_engine()
             gr.Info(f"Change model to {model}!")
+        return DefaultElement.DEFAULT_STATUS
+
+    def _change_embed_model(self, model: str):
+        if model not in [None, ""]:
+            self._rag_engine.embed_model = model
+            self._rag_engine.reset_engine()
+            gr.Info(f"Change **embed** model to {model}!")
         return DefaultElement.DEFAULT_STATUS
 
     def _upload_document(self, document: List[str], list_files: Tuple[List[str], dict]):
@@ -329,12 +290,24 @@ class LocalChatbotUI:
                             )
                             model = gr.Dropdown(
                                 label="Choose Model:",
+                                # choices=[
+                                #     self._rag_engine.get_available_models()
+                                # ],
+                                choices=["llama3", "gemma2", "gemma2:27b"],
+                                # value=self._rag_engine.default_model,
+                                value="llama3",
+                                interactive=True,
+                                allow_custom_value=False,
+                            )
+                            embed_model = gr.Dropdown(
+                                label="Choose Model:",
                                 choices=[
-                                    self._rag_engine.get_available_models()
+                                    self._rag_engine.get_available_embed_models()
                                 ],
+                                # value=self._rag_engine.default_embed_model,
                                 value=None,
                                 interactive=True,
-                                allow_custom_value=True,
+                                allow_custom_value=False,
                             )
                             # with gr.Row():
                             #     pull_btn = gr.Button(
@@ -473,11 +446,10 @@ class LocalChatbotUI:
             language.change(self._change_language, inputs=[language]).then(
                 self._clear_chat, outputs=[message, chatbot, status]
             )
-            # model.change(
-            #     self._get_confirm_pull_model,
-            #     inputs=[model],
-            #     outputs=[pull_btn, cancel_btn, status],
-            # )
+            embed_model.change(
+                self._change_embed_model, inputs=[embed_model], outputs=[status]
+            )
+            model.change(self._change_model, inputs=[model], outputs=[status])
             documents.change(
                 self._processing_document,
                 inputs=[documents],
