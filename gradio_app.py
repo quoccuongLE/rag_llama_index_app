@@ -289,23 +289,16 @@ class LocalChatbotUI:
                                 interactive=True,
                             )
                             model = gr.Dropdown(
-                                label="Choose Model:",
-                                # choices=[
-                                #     self._rag_engine.get_available_models()
-                                # ],
-                                choices=["llama3", "gemma2", "gemma2:27b"],
-                                # value=self._rag_engine.default_model,
-                                value="llama3",
+                                label="Choose LLM:",
+                                choices=self._rag_engine.get_available_models(),
+                                value=self._rag_engine.default_model,
                                 interactive=True,
                                 allow_custom_value=False,
                             )
                             embed_model = gr.Dropdown(
-                                label="Choose Model:",
-                                choices=[
-                                    self._rag_engine.get_available_embed_models()
-                                ],
-                                # value=self._rag_engine.default_embed_model,
-                                value=None,
+                                label="Choose Embed Model:",
+                                choices=self._rag_engine.get_available_embed_models(),
+                                value=self._rag_engine.default_embed_model,
                                 interactive=True,
                                 allow_custom_value=False,
                             )

@@ -76,10 +76,10 @@ class RawBaseSynthesizer(Refine):
             text += "".join(
                 [
                     f"({i}) - Page {page_number} \nText:\t",
-                    extract,
-                    "...\n*----*----*----*----*\n",
-                    f"Metadata:\t {node.node.metadata}",
-                    f"Score:\t {node.score:.3f}"
+                    extract, "...",
+                    # f"Metadata:\t {node.node.metadata}",
+                    f"\nScore:\t {node.score:.3f}\n"
+                    "\n[ ---- * ---- * ---- * ---- ]\n",
                 ]
             )
         return Response(
@@ -123,6 +123,6 @@ def get_query_engine_tool(
         return CitationQueryEngine.from_args(
             index,
             response_synthesizer=RawBaseSynthesizer(),
-            citation_chunk_size=256,
+            citation_chunk_size=512,
             similarity_top_k=5,
         )

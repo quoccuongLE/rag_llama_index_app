@@ -1,45 +1,44 @@
 from pathlib import Path
 from typing import List, Optional, Tuple
 
+import ollama
 from llama_index.core import (
     Settings,
     StorageContext,
     VectorStoreIndex,
     load_index_from_storage,
 )
-
 from llama_index.core.chat_engine.types import StreamingAgentChatResponse
 from llama_index.core.prompts import ChatMessage, MessageRole
-from llama_index.core.query_engine import RouterQueryEngine
-from llama_index.embeddings.ollama import OllamaEmbedding
+
 from llama_index.llms.ollama import Ollama
-import ollama
 
 from .data_store import data_indexing, load_single_doc_into_nodes
+from .embedding import factory as embedding_factory
 from .prompt import get_system_prompt
-from .query_tools import get_query_engine_tool, ChatMode
-from .settings import RAGSettings
-
+from .query_tools import ChatMode, get_query_engine_tool
+from .settings import RAGSetting
 
 _EMBED_MODELS = [
-    "mxbai-embed-large",  # (Recommended for short context (512 max) d = 1024)
-    "nomic-embed-text",  # (Recommended for long context (8192 max) d = 768)
-    "all-minilm",
-    "snowflake-arctic-embed",
+    "ollama/mxbai-embed-large",  # (Recommended for short context (512 max) d = 1024)
+    "ollama/nomic-embed-text",  # (Recommended for long context (8192 max) d = 768)
+    "ollama/all-minilm",
+    "ollama/snowflake-arctic-embed",
 ]
 
 
 class DocRetrievalAugmentedGen:
+
     def __init__(
         self,
         host: str = "127.0.0.1",
-        setting: RAGSettings | dict | None = None,
+        setting: RAGSetting | dict | None = None,
         chat_mode: str = "QA",
     ) -> None:
         self._host = host
         self._language: str = "eng"
         self._system_prompt: str = get_system_prompt("eng", is_rag_prompt=False)
-        self._setting = RAGSettings() or setting
+        self._setting = RAGSetting() or setting
         self._model_name: str = "llama3" or self._setting.llm.model
         self._query_engine = None
 
@@ -48,7 +47,8 @@ class DocRetrievalAugmentedGen:
             system_prompt=self._system_prompt,
             request_timeout=self._setting.llm.request_timeout,
         )
-        Settings.embed_model = OllamaEmbedding(model_name=self._setting.embed_model.name)
+
+        Settings.embed_model = embedding_factory.build(self._setting.embed_model)
 
         self._query_engine_name: str = ""
         self._files_registry = []
@@ -61,8 +61,11 @@ class DocRetrievalAugmentedGen:
 
     def get_available_models(self) -> List[str]:
         info_dict = ollama.list()
-        _list = [x["name"].replace(":latest", "") for x in info_dict["models"]]
-        return [x for x in _list if x not in _EMBED_MODELS]
+        ollama_list = [
+            "ollama/" + x["name"].replace(":latest", "")
+            for x in info_dict["models"]
+        ]
+        return [x for x in ollama_list if x not in _EMBED_MODELS]
 
     @property
     def default_model(self) -> str:
@@ -70,19 +73,23 @@ class DocRetrievalAugmentedGen:
 
     def get_available_embed_models(self) -> list[str]:
         info_dict = ollama.list()
-        _list = [x["name"].replace(":latest", "") for x in info_dict["models"]]
-        return [x for x in _list if x in _EMBED_MODELS]
+        ollama_list = [
+            "ollama/" + x["name"].replace(":latest", "") for x in info_dict["models"]
+        ]
+        return [x for x in ollama_list if x in _EMBED_MODELS]
 
     @property
     def default_embed_model(self) -> str:
-        return "mxbai-embed-large"
+        return "ollama/mxbai-embed-large"
 
     def _read_doc_and_load_index(
         self, filename: Path, forced_indexing: bool = False
     ) -> Tuple[VectorStoreIndex, StorageContext]:
         try:
             storage_context = StorageContext.from_defaults(
-                persist_dir=Path(self._setting.index_store) / f"{filename.name}"
+                persist_dir=Path(self._setting.index_store)
+                / self.embed_model
+                / f"{filename.name}"
             )
             index = load_index_from_storage(storage_context)
             success = True
@@ -118,12 +125,13 @@ class DocRetrievalAugmentedGen:
 
     @property
     def embed_model(self) -> str:
-        return self._setting.embed_model.name
+        return self._setting.embed_model.model_name
 
     @embed_model.setter
     def embed_model(self, model: str):
-        self._setting.embed_model.name = model
-        Settings.embed_model = OllamaEmbedding(model_name=self._setting.embed_model.name)
+        model_type, model_name = tuple(model.split("/"))
+        self._setting.embed_model.override(dict(model_name=model_name, type=model_type))
+        Settings.embed_model = embedding_factory.build(self._setting.embed_model)
 
     @property
     def model(self) -> str:
@@ -173,6 +181,9 @@ class DocRetrievalAugmentedGen:
         )
 
     def reset_engine(self):
+        if self.embed_model not in self._doc_index_stores.keys():
+            self._load_index_stores()
+
         self._query_engine = get_query_engine_tool(
             index=self._doc_index_stores[self.embed_model][self._query_engine_name],
             storage_context=self._doc_ctx_stores[self.embed_model][
