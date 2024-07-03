@@ -9,6 +9,7 @@ from llama_index.core.prompts import ChatMessage, MessageRole
 from llama_index.core.query_engine import RouterQueryEngine
 from llama_index.embeddings.ollama import OllamaEmbedding
 from llama_index.llms.ollama import Ollama
+import ollama
 
 from .data_store import data_indexing, load_single_doc_into_nodes
 from .prompt import get_system_prompt
@@ -44,6 +45,9 @@ class DocRetrievalAugmentedGen:
         self._doc_ctx_stores = {}
         self._load_index_stores()
         self._chat_mode = ChatMode(chat_mode)
+
+    def get_available_models(self) -> List[str]:
+        return ollama.list()
 
     def _read_doc_and_load_index(
         self, filename: Path, forced_indexing: bool = False

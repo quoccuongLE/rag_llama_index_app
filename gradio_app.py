@@ -327,21 +327,15 @@ class LocalChatbotUI:
                                 value="eng",
                                 interactive=True,
                             )
-                            # model = gr.Dropdown(
-                            #     label="Choose Model:",
-                            #     choices=[
-                            #         "llama3-chatqa:8b-v1.5-q8_0",
-                            #         "llama3-chatqa:8b-v1.5-q6_K",
-                            #         "llama3:8b-instruct-q8_0",
-                            #         "starling-lm:7b-beta-q8_0",
-                            #         "mixtral:instruct",
-                            #         "nous-hermes2:10.7b-solar-q4_K_M",
-                            #         "codeqwen:7b-chat-v1.5-q5_1",
-                            #     ],
-                            #     value=None,
-                            #     interactive=True,
-                            #     allow_custom_value=True,
-                            # )
+                            model = gr.Dropdown(
+                                label="Choose Model:",
+                                choices=[
+                                    self._rag_engine.get_available_models()
+                                ],
+                                value=None,
+                                interactive=True,
+                                allow_custom_value=True,
+                            )
                             # with gr.Row():
                             #     pull_btn = gr.Button(
                             #         value="Pull Model", visible=False, min_width=50
