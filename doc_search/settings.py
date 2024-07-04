@@ -1,4 +1,5 @@
 import copy
+from typing import Sequence
 
 from pydantic import BaseModel, Field
 
@@ -77,3 +78,24 @@ class RAGSetting(ConfigParams):
     llm: LLMSetting = LLMSetting()
     embed_model: EmbedModelSetting = Field(default_factory=EmbedModelSetting)
     query_engine: EngineConfig = Field(default_factory=QAEngineConfig)
+
+
+class ReaderConfig(ConfigParams):
+    # TODO: To be replaced
+    # file_extractor: dict[str, callable] = Field(default_factory=dict)
+    # file_extractor: list[str] = Field(default_factory=lambda: [".md"])
+    file_extractor: list[str] = Field(default_factory=lambda: [])
+
+
+class LoaderConfig(ConfigParams):
+    reader_config: ReaderConfig = Field(default_factory=ReaderConfig)
+    recursive: bool = Field(default=True)
+
+    # LlamaParse(result_type="markdown")
+    loader_name: str = Field(default="single_file")
+    index_store_name: str = Field(default="vector_store_index")
+    result_type: str = Field(default="markdown")
+
+
+class ParserConfig(ConfigParams):
+    chunk_size: int = Field(default=512)
