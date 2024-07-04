@@ -1,61 +1,90 @@
 from copy import deepcopy
 from pathlib import Path
 
-from llama_index.core import SimpleDirectoryReader, VectorStoreIndex
+from llama_index.core import Document, SimpleDirectoryReader, VectorStoreIndex
+from llama_index.core.node_parser import (HierarchicalNodeParser,
+                                          MarkdownElementNodeParser,
+                                          MarkdownNodeParser, NodeParser,
+                                          SentenceSplitter, get_leaf_nodes)
+from llama_index.core.schema import BaseNode, Document, MetadataMode, TextNode
+from llama_index.llms.ollama import Ollama
 
-from llama_index.core.node_parser import (
-    NodeParser,
-    HierarchicalNodeParser,
-    get_leaf_nodes,
-    SentenceSplitter,
-)
-from llama_index.core.schema import Document, MetadataMode, BaseNode, TextNode
-
-from llama_index.core.node_parser import (
-    MarkdownElementNodeParser,
-    MarkdownNodeParser,
-    SimpleFileNodeParser,
-)
-from llama_index.core import Document, SimpleDirectoryReader
-
-from doc_search.settings import LoaderConfig
-from doc_search.data_processing.data_loader import factory as reader_factory
+from doc_search.data_processing.data_loader import factory as loader_factory
 from doc_search.data_processing.indexing import factory as indexer_factory
+from doc_search.data_processing.parser import factory
+from doc_search.settings import ParserConfig
 
 
 class SimpleParser:
 
-    # doc_reader: SimpleDirectoryReader
-    parser: SimpleFileNodeParser = SimpleFileNodeParser()
-    loader_config: LoaderConfig = LoaderConfig()
+    parser_config: ParserConfig = ParserConfig()
     data_runtime: Path = Path("./data")
 
     def __init__(
         self,
-        loader_config: LoaderConfig,
-        parser: SimpleFileNodeParser,
         data_runtime: Path,
+        parser_config: ParserConfig,
     ) -> None:
-        # self.doc_reader = doc_reader
-        self.loader_config = loader_config
-        self.parser = parser
         self.data_runtime = data_runtime
+        self.parser_config = parser_config
 
     def read_file(self, filename: Path, dirname: str):
         assert filename.is_file(), f"Input path {filename} is not a file !"
 
-        doc_loader = reader_factory.build(
-            name=self.loader_config.loader_name, file=filename, config=self.loader_config
+        doc_loader = loader_factory.build(
+            name=self.parser_config.loader_name, file=filename, config=self.parser_config
         )
         documents = doc_loader.load_data()
         index, storage_context = indexer_factory.build(
-            name=self.loader_config.index_store_name,
+            name=self.parser_config.index_store_name,
             dirname=dirname,
             data_runtime=self.data_runtime,
             nodes_or_documents=documents,
         )
 
         return index, storage_context
+
+
+class LlamaParser:
+
+    node_parser: NodeParser = MarkdownNodeParser()
+
+    def __init__(self, node_parser: NodeParser, **kwargs):
+        super().__init__(**kwargs)
+        self.node_parser = node_parser
+
+    def read_file(self, filename: Path, dirname: str):
+        assert filename.is_file(), f"Input path {filename} is not a file !"
+        doc_loader = loader_factory.build(
+            name=self.loader_config.loader_name, file=filename, config=self.loader_config
+        )
+        documents = doc_loader(filename)
+        nodes = self.node_parser.get_nodes_from_documents(documents)
+        base_nodes, objects = self.node_parser.get_nodes_and_objects(nodes)
+
+        recursive_index = VectorStoreIndex(nodes=base_nodes + objects)
+        recursive_index.storage_context.persist(persist_dir=self.data_runtime / dirname)
+        return recursive_index, recursive_index.storage_context
+
+
+@factory.register_builder("simple_parser")
+def build_simple_parser(data_runtime: Path, config: ParserConfig):
+    return SimpleParser(data_runtime=data_runtime, parser_config=config)
+
+
+@factory.register_builder("llama_parser")
+def build_llama_parser(data_runtime: Path, config: ParserConfig):
+    # TODO: node parser builder
+    match config.node_parser_name:
+        case "markdown_node_parser":
+            node_parser = MarkdownNodeParser()
+        case "markdown_element_node_parser":
+            node_parser = MarkdownElementNodeParser(
+                llm=Ollama(config.llm_model), num_workers=config.num_workers
+            )
+        case _:
+            raise ValueError(f"{config.node_parser_name} invalid !")
+    return LlamaParser(data_runtime=data_runtime, parser_config=config, node_parser=node_parser)
 
 
 def _get_page_nodes(

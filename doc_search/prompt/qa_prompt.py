@@ -65,3 +65,13 @@ Lịch sử Trò chuyện:
 Đầu vào Tiếp Theo: {question}
 Câu hỏi độc lập:\
 """
+
+_EXAMPLE_INSTRUCTION_PROMPT = """
+This document is an insurance policy.
+When a benefits/coverage/exlusion is describe in the document ammend to it add a text in the follwing benefits string format (where coverage could be an exclusion).
+
+For {nameofrisk} and in this condition {whenDoesThecoverageApply} the coverage is {coverageDescription}. 
+                                        
+If the document contain a benefits TABLE that describe coverage amounts, do not ouput it as a table, but instead as a list of benefits string.
+                                       
+"""

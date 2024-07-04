@@ -1,6 +1,6 @@
 import copy
-from typing import Sequence
 
+from llama_index.core.llms import LLM
 from pydantic import BaseModel, Field
 
 from .prompt import get_system_prompt
@@ -68,6 +68,29 @@ class QAEngineConfig(EngineConfig):
     hierarchical: bool = Field(default=False)
 
 
+class LoaderConfig(ConfigParams):
+    file_extractor: list[str] = Field(default_factory=lambda: [])
+    recursive: bool = Field(default=True)
+
+
+class ParserConfig(ConfigParams):
+    name: str = Field(default="simple_parser")
+
+    # Loader config
+    loader_name: str = Field(default="single_file")
+    loader_config: LoaderConfig = Field(default_factory=LoaderConfig)
+
+    # Indexing config
+    index_store_name: str = Field(default="vector_store_index")
+    result_type: str = Field(default="markdown")
+    parsing_instruction: str = Field(default="")
+
+    # node parser config
+    node_parser_name: str = Field(default="markdown_node_parser")
+    llm_model: str = Field(default="llama3")
+    num_workers: int = Field(default=8)
+
+
 class RAGSetting(ConfigParams):
     index_store: str = Field(
         default="./data/doc_search/index_store", description="Store for doc index"
@@ -75,27 +98,7 @@ class RAGSetting(ConfigParams):
     file_storage: str = Field(
         default="./data/doc_search/docs", description="Store for docs"
     )
-    llm: LLMSetting = LLMSetting()
+    llm: LLMSetting = Field(default_factory=LLMSetting)
     embed_model: EmbedModelSetting = Field(default_factory=EmbedModelSetting)
     query_engine: EngineConfig = Field(default_factory=QAEngineConfig)
-
-
-class ReaderConfig(ConfigParams):
-    # TODO: To be replaced
-    # file_extractor: dict[str, callable] = Field(default_factory=dict)
-    # file_extractor: list[str] = Field(default_factory=lambda: [".md"])
-    file_extractor: list[str] = Field(default_factory=lambda: [])
-
-
-class LoaderConfig(ConfigParams):
-    reader_config: ReaderConfig = Field(default_factory=ReaderConfig)
-    recursive: bool = Field(default=True)
-
-    # LlamaParse(result_type="markdown")
-    loader_name: str = Field(default="single_file")
-    index_store_name: str = Field(default="vector_store_index")
-    result_type: str = Field(default="markdown")
-
-
-class ParserConfig(ConfigParams):
-    chunk_size: int = Field(default=512)
+    parser_config: ParserConfig = Field(default_factory=ParserConfig)

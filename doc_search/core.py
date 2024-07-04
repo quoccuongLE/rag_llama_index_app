@@ -2,14 +2,22 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 import ollama
-from llama_index.core import (Settings, StorageContext, VectorStoreIndex,
-                              load_index_from_storage)
+from llama_index.core import (
+    Settings,
+    StorageContext,
+    VectorStoreIndex,
+    load_index_from_storage,
+)
 from llama_index.core.chat_engine.types import StreamingAgentChatResponse
 from llama_index.core.prompts import ChatMessage, MessageRole
 from llama_index.llms.ollama import Ollama
 
-from .data_processing.indexing.data_indexing import (data_indexing,
-                                         load_single_doc_into_nodes)
+from .data_processing.indexing.data_indexing import (
+    data_indexing,
+    load_single_doc_into_nodes,
+)
+
+from .data_processing.parser import factory as parser_factory
 from .embedding import factory as embedding_factory
 from .prompt import get_system_prompt
 from .query_engine import factory as qengine_factory
@@ -41,6 +49,9 @@ class DocRetrievalAugmentedGen:
         self._setting = RAGSetting() or setting
         self._model_name: str = "llama3" or self._setting.llm.model
         self._query_engine = None
+        self._parser = parser_factory.build(
+            config=self._setting.parser_config, data_runtime=self._setting.index_store
+        )
 
         Settings.llm = Ollama(
             model=self._setting.llm.model,
@@ -68,14 +79,9 @@ class DocRetrievalAugmentedGen:
 
     @property
     def default_model(self) -> str:
-        return "llama3"
+        return "ollama/llama3"
 
     def get_available_embed_models(self) -> list[str]:
-        # info_dict = ollama.list()
-        # ollama_list = [
-        #     "ollama/" + x["name"].replace(":latest", "") for x in info_dict["models"]
-        # ]
-        # return [x for x in ollama_list if x in _EMBED_MODELS]
         return _EMBED_MODELS
 
     @property
@@ -97,11 +103,11 @@ class DocRetrievalAugmentedGen:
             success = False
 
         if forced_indexing or not success:
-            nodes = load_single_doc_into_nodes(filename)
-            index, storage_context = data_indexing(
-                dirname=filename.name,
-                data_runtime=Path(self._setting.index_store) / self.embed_model,
-                nodes=nodes,
+            self._parser.data_runtime = (
+                Path(self._setting.index_store) / self.embed_model / filename
+            )
+            index, storage_context = self._parser.read_file(
+                filename=filename, dirname=filename
             )
 
         return index, storage_context
@@ -185,7 +191,7 @@ class DocRetrievalAugmentedGen:
             self._load_index_stores()
 
         idx = self._doc_index_stores[self.embed_model][self._query_engine_name]
-        storage_ctx = (self._doc_ctx_stores[self.embed_model][self._query_engine_name])
+        storage_ctx = self._doc_ctx_stores[self.embed_model][self._query_engine_name]
         self._query_engine = qengine_factory.build(
             name=self._chat_mode.value,
             config=self._setting.query_engine,
@@ -210,15 +216,12 @@ class DocRetrievalAugmentedGen:
         for file in input_files:
             if file not in self._files_registry:
                 self._files_registry.append(file)
-                _file = Path(file)
-                nodes = load_single_doc_into_nodes(_file)
-                index, storage_context = data_indexing(
-                    dirname=_file.name,
-                    data_runtime=Path(self._setting.index_store) / self.embed_model,
-                    nodes=nodes,
+                filename = Path(file)
+                index, storage_context = self._read_doc_and_load_index(
+                    filename=filename, forced_indexing=True
                 )
-                self._doc_index_stores[self.embed_model][_file.name] = index
-                self._doc_ctx_stores[self.embed_model][_file.name] = storage_context
+                self._doc_index_stores[self.embed_model][filename.name] = index
+                self._doc_ctx_stores[self.embed_model][filename.name] = storage_context
 
     def set_chat_mode(
         self,

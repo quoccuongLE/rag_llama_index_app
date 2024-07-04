@@ -20,7 +20,7 @@ def register_builder(key: str):
 
 
 def build(config: ConfigParams, name: str | None = None, **kwargs):
-    builder = registry.lookup(_REGISTERED_PARSER_CLS, name)
+    builder = registry.lookup(_REGISTERED_PARSER_CLS, name or config.name)
     return builder(config=config, **kwargs)
 
 
