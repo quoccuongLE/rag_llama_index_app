@@ -25,3 +25,4 @@ dependencies:
     - sentencepiece
     - git+https://github.com/FlagOpen/FlagEmbedding.git
     - ollama
+    - flash_attn

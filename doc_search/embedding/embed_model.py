@@ -4,17 +4,23 @@ from sentence_transformers import SentenceTransformer
 
 from doc_search.embedding import factory
 from doc_search.settings import EmbedModelSetting
+from llama_index.core.bridge.pydantic import Field
 
 class EmbedModel(BaseEmbedding):
+    model: SentenceTransformer = Field(
+        default_factory=SentenceTransformer, exclude=True
+    )
 
-    def __init__(self, model: str = "Alibaba-NLP/gte-Qwen2-1.5B-instruct", max_seq_length=131072, **kwargs):
+    def __init__(
+        self,
+        model: str = "Alibaba-NLP/gte-Qwen2-1.5B-instruct",
+        max_seq_length=131072,
+        **kwargs
+    ):
         super().__init__(**kwargs)
 
-        model: SentenceTransformer = SentenceTransformer(
-            "Alibaba-NLP/gte-Qwen2-1.5B-instruct", trust_remote_code=True,
-        )
-        # model.max_seq_length = 8192
-        model.max_seq_length = max_seq_length
+        self.model = SentenceTransformer(model, trust_remote_code=True)
+        self.model.max_seq_length = max_seq_length
 
     def _get_query_embedding(self, query: str) -> list[float]:
         embeddings = self.model.encode([query])

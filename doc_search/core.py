@@ -16,7 +16,7 @@ from llama_index.llms.ollama import Ollama
 from .data_store import data_indexing, load_single_doc_into_nodes
 from .embedding import factory as embedding_factory
 from .prompt import get_system_prompt
-from .query_tools import ChatMode, get_query_engine_tool
+from .query_engine.query_tools import ChatMode, get_query_engine_tool
 from .settings import RAGSetting
 
 _EMBED_MODELS = [
@@ -24,6 +24,7 @@ _EMBED_MODELS = [
     "ollama/nomic-embed-text",  # (Recommended for long context (8192 max) d = 768)
     "ollama/all-minilm",
     "ollama/snowflake-arctic-embed",
+    "huggingface/Alibaba-NLP/gte-Qwen2-1.5B-instruct",
 ]
 
 
@@ -72,11 +73,12 @@ class DocRetrievalAugmentedGen:
         return "llama3"
 
     def get_available_embed_models(self) -> list[str]:
-        info_dict = ollama.list()
-        ollama_list = [
-            "ollama/" + x["name"].replace(":latest", "") for x in info_dict["models"]
-        ]
-        return [x for x in ollama_list if x in _EMBED_MODELS]
+        # info_dict = ollama.list()
+        # ollama_list = [
+        #     "ollama/" + x["name"].replace(":latest", "") for x in info_dict["models"]
+        # ]
+        # return [x for x in ollama_list if x in _EMBED_MODELS]
+        return _EMBED_MODELS
 
     @property
     def default_embed_model(self) -> str:
@@ -129,7 +131,7 @@ class DocRetrievalAugmentedGen:
 
     @embed_model.setter
     def embed_model(self, model: str):
-        model_type, model_name = tuple(model.split("/"))
+        model_type, model_name = tuple(model.split("/", 1))
         self._setting.embed_model.override(dict(model_name=model_name, type=model_type))
         Settings.embed_model = embedding_factory.build(self._setting.embed_model)
 

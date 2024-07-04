@@ -34,7 +34,7 @@ class EmbedModelSetting(ConfigParams):
     model_name: str = Field(
         default="mxbai-embed-large", description="Embedding model used in RAG"
     )
-    max_seq_length: int = 131072
+    max_seq_length: int = 8192
     request_timeout: float = Field(
         default=120.0, description="Timeout for query requesting to Ollama server"
     )

@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, Callable, Generator, List, Optional, Sequence
+from typing import Any, Generator, Optional, Sequence
 
 from llama_index.core import StorageContext, VectorStoreIndex
 from llama_index.core.base.response.schema import Response, StreamingResponse
@@ -19,10 +19,6 @@ from llama_index.core.tools import QueryEngineTool, ToolMetadata
 from llama_index.core.base.response.schema import RESPONSE_TYPE
 from llama_index.core.types import BasePydanticProgram
 from llama_index.vector_stores.milvus import MilvusVectorStore
-
-# from llama_index.core.retrievers import (
-#     BaseRetriever,
-#     QueryFusionRetriever)
 
 
 class ChatMode(str, Enum):
@@ -44,7 +40,7 @@ class RawBaseSynthesizer(Refine):
     def synthesize(
         self,
         query: QueryType,
-        nodes: List[NodeWithScore],
+        nodes: list[NodeWithScore],
         additional_source_nodes: Optional[Sequence[NodeWithScore]] = None,
         **response_kwargs: Any,
     ) -> RESPONSE_TYPE:
@@ -65,7 +61,7 @@ class RawBaseSynthesizer(Refine):
         response = self._prepare_response_output(nodes)
         return response
 
-    def _prepare_response_output(self, source_nodes: List[NodeWithScore]):
+    def _prepare_response_output(self, source_nodes: list[NodeWithScore]):
         response_metadata = self._get_metadata_for_response(
             [node_with_score.node for node_with_score in source_nodes]
         )
