@@ -19,7 +19,6 @@ from llama_index.core.node_parser import (
     MarkdownNodeParser,
 )
 
-
 def load_docs(filepath: Path, hierarchical: bool = True) -> List[NodeParser]:
     """Load markdown docs from a directory, excluding all other file types."""
     loader = SimpleDirectoryReader(input_dir=filepath)
@@ -87,29 +86,3 @@ def load_single_doc_into_nodes(filename: Path) -> List[BaseNode]:
             base_nodes.extend(node_parser.get_nodes_from_node(node))
         # base_nodes = [node_parser.get_nodes_from_node(node) for node in nodes]
         return base_nodes + page_nodes
-
-
-def data_indexing(
-    dirname: str,
-    data_runtime: Path,
-    nodes: List[BaseNode],
-    leaf_nodes: Optional[List[BaseNode]] = None,
-):
-
-    if leaf_nodes:
-        # If hierarchical
-        docstore = SimpleDocumentStore()
-        docstore.add_documents(nodes)
-        storage_context = StorageContext.from_defaults(docstore=docstore)
-
-        # Indexing
-        index = VectorStoreIndex(leaf_nodes, storage_context=storage_context)
-        index.storage_context.persist(persist_dir=data_runtime / dirname)
-
-    else:
-        # Indexing
-        index = VectorStoreIndex(nodes)
-        index.storage_context.persist(persist_dir=data_runtime / dirname)
-        storage_context = None
-
-    return index, storage_context

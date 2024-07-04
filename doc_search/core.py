@@ -2,21 +2,18 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 import ollama
-from llama_index.core import (
-    Settings,
-    StorageContext,
-    VectorStoreIndex,
-    load_index_from_storage,
-)
+from llama_index.core import (Settings, StorageContext, VectorStoreIndex,
+                              load_index_from_storage)
 from llama_index.core.chat_engine.types import StreamingAgentChatResponse
 from llama_index.core.prompts import ChatMessage, MessageRole
-
 from llama_index.llms.ollama import Ollama
 
-from .data_store import data_indexing, load_single_doc_into_nodes
+from .data_processing.indexing.data_indexing import (data_indexing,
+                                         load_single_doc_into_nodes)
 from .embedding import factory as embedding_factory
 from .prompt import get_system_prompt
-from .query_engine.query_tools import ChatMode, get_query_engine_tool
+from .query_engine import factory as qengine_factory
+from .query_engine.query_tools import ChatMode
 from .settings import RAGSetting
 
 _EMBED_MODELS = [
@@ -25,6 +22,8 @@ _EMBED_MODELS = [
     "ollama/all-minilm",
     "ollama/snowflake-arctic-embed",
     "huggingface/Alibaba-NLP/gte-Qwen2-1.5B-instruct",
+    "intfloat/multilingual-e5-large-instruct",  # instrauct added into query
+    "intfloat/multilingual-e5-small",
 ]
 
 
@@ -63,8 +62,7 @@ class DocRetrievalAugmentedGen:
     def get_available_models(self) -> List[str]:
         info_dict = ollama.list()
         ollama_list = [
-            "ollama/" + x["name"].replace(":latest", "")
-            for x in info_dict["models"]
+            "ollama/" + x["name"].replace(":latest", "") for x in info_dict["models"]
         ]
         return [x for x in ollama_list if x not in _EMBED_MODELS]
 
@@ -186,12 +184,13 @@ class DocRetrievalAugmentedGen:
         if self.embed_model not in self._doc_index_stores.keys():
             self._load_index_stores()
 
-        self._query_engine = get_query_engine_tool(
-            index=self._doc_index_stores[self.embed_model][self._query_engine_name],
-            storage_context=self._doc_ctx_stores[self.embed_model][
-                self._query_engine_name
-            ],
-            chat_mode=self._chat_mode,
+        idx = self._doc_index_stores[self.embed_model][self._query_engine_name]
+        storage_ctx = (self._doc_ctx_stores[self.embed_model][self._query_engine_name])
+        self._query_engine = qengine_factory.build(
+            name=self._chat_mode.value,
+            config=self._setting.query_engine,
+            index=idx,
+            storage_context=storage_ctx,
         )
 
     def clear_conversation(self):

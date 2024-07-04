@@ -34,10 +34,37 @@ class EmbedModelSetting(ConfigParams):
     model_name: str = Field(
         default="mxbai-embed-large", description="Embedding model used in RAG"
     )
-    max_seq_length: int = 8192
+    max_seq_length: int = Field(default=8192)
     request_timeout: float = Field(
         default=120.0, description="Timeout for query requesting to Ollama server"
     )
+    instruct_prompt: str = Field(
+        default="", description="Instruct added into user queries"
+    )
+
+
+class RawBaseSynthesizerConfig(ConfigParams):
+    topk: int = Field(default=5)
+    sample_length: int = Field(default=200)
+
+
+class EngineConfig(ConfigParams):
+    type: str = Field(default="QA")
+
+
+class SimpleChatEngineConfig(EngineConfig):
+    chat_token_limit: int = Field(default=4000)
+
+
+class CitationEngineConfig(EngineConfig):
+    citation_chunk_size: int = Field(default=512)
+    similarity_top_k: int = Field(default=5)
+    synthesizer: RawBaseSynthesizerConfig = Field(default_factory=RawBaseSynthesizerConfig)
+
+
+class QAEngineConfig(EngineConfig):
+    similarity_top_k: int = Field(default=12)
+    hierarchical: bool = Field(default=False)
 
 
 class RAGSetting(ConfigParams):
@@ -47,7 +74,6 @@ class RAGSetting(ConfigParams):
     file_storage: str = Field(
         default="./data/doc_search/docs", description="Store for docs"
     )
-
     llm: LLMSetting = LLMSetting()
-
-    embed_model: EmbedModelSetting = EmbedModelSetting()
+    embed_model: EmbedModelSetting = Field(default_factory=EmbedModelSetting)
+    query_engine: EngineConfig = Field(default_factory=QAEngineConfig)
