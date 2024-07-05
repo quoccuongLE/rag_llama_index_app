@@ -1,6 +1,6 @@
 import os
+from pathlib import Path
 import shutil
-import json
 import sys
 import time
 import gradio as gr
@@ -11,6 +11,7 @@ from llama_index.core.chat_engine.types import StreamingAgentChatResponse
 from doc_search import DocRetrievalAugmentedGen
 from doc_search.logger import Logger
 
+import fire
 
 LOG_FILE = "logging.log"
 DATA_DIR = "data/data"
@@ -118,8 +119,9 @@ class LocalChatbotUI:
         host: str = "127.0.0.1",
         data_dir: str = "data/doc_search/docs",
         avatar_images: List[str] = ["./assets/user.png", "./assets/bot.png"],
+        rag_yaml_config: Path | None = None,
     ):
-        self._rag_engine = DocRetrievalAugmentedGen(host=host)
+        self._rag_engine = DocRetrievalAugmentedGen(setting=rag_yaml_config)
         self._logger = logger
         self._host = host
         self._data_dir = os.path.join(os.getcwd(), data_dir)
@@ -150,57 +152,18 @@ class LocalChatbotUI:
                 yield m
             sys.stdout = console
 
-    def _get_confirm_pull_model(self, model: str):
-        if (model in ["gpt-3.5-turbo", "gpt-4"]) or (
-            self._rag_engine.check_exist(model)
-        ):
-            self._change_model(model)
-            return (
-                gr.update(visible=False),
-                gr.update(visible=False),
-                DefaultElement.DEFAULT_STATUS,
-            )
-        return (
-            gr.update(visible=True),
-            gr.update(visible=True),
-            DefaultElement.CONFIRM_PULL_MODEL_STATUS,
-        )
-
-    def _pull_model(self, model: str, progress=gr.Progress(track_tqdm=True)):
-        if (model not in ["gpt-3.5-turbo", "gpt-4"]) and not (
-            self._rag_engine.check_exist(model)
-        ):
-            response = self._rag_engine.pull_model(model)
-            if response.status_code == 200:
-                gr.Info(f"Pulling {model}!")
-                for data in response.iter_lines(chunk_size=1):
-                    data = json.loads(data)
-                    if "completed" in data.keys() and "total" in data.keys():
-                        progress(data["completed"] / data["total"], desc="Downloading")
-                    else:
-                        progress(0.0)
-            else:
-                gr.Warning(f"Model {model} doesn't exist!")
-                return (
-                    DefaultElement.DEFAULT_MESSAGE,
-                    DefaultElement.DEFAULT_HISTORY,
-                    DefaultElement.PULL_MODEL_FAIL_STATUS,
-                    DefaultElement.DEFAULT_MODEL,
-                )
-
-        return (
-            DefaultElement.DEFAULT_MESSAGE,
-            DefaultElement.DEFAULT_HISTORY,
-            DefaultElement.PULL_MODEL_SCUCCESS_STATUS,
-            model,
-        )
-
     def _change_model(self, model: str):
         if model not in [None, ""]:
-            self._rag_engine.model_name = model
-            self._rag_engine.set_model()
-            self._rag_engine.set_engine()
+            self._rag_engine.model = model
+            self._rag_engine.reset_engine()
             gr.Info(f"Change model to {model}!")
+        return DefaultElement.DEFAULT_STATUS
+
+    def _change_embed_model(self, model: str):
+        if model not in [None, ""]:
+            self._rag_engine.embed_model = model
+            self._rag_engine.reset_engine()
+            gr.Info(f"Change **embed** model to {model}!")
         return DefaultElement.DEFAULT_STATUS
 
     def _upload_document(self, document: List[str], list_files: Tuple[List[str], dict]):
@@ -327,21 +290,20 @@ class LocalChatbotUI:
                                 value="eng",
                                 interactive=True,
                             )
-                            # model = gr.Dropdown(
-                            #     label="Choose Model:",
-                            #     choices=[
-                            #         "llama3-chatqa:8b-v1.5-q8_0",
-                            #         "llama3-chatqa:8b-v1.5-q6_K",
-                            #         "llama3:8b-instruct-q8_0",
-                            #         "starling-lm:7b-beta-q8_0",
-                            #         "mixtral:instruct",
-                            #         "nous-hermes2:10.7b-solar-q4_K_M",
-                            #         "codeqwen:7b-chat-v1.5-q5_1",
-                            #     ],
-                            #     value=None,
-                            #     interactive=True,
-                            #     allow_custom_value=True,
-                            # )
+                            model = gr.Dropdown(
+                                label="Choose LLM:",
+                                choices=self._rag_engine.get_available_models(),
+                                value=self._rag_engine.default_model,
+                                interactive=True,
+                                allow_custom_value=False,
+                            )
+                            embed_model = gr.Dropdown(
+                                label="Choose Embed Model:",
+                                choices=self._rag_engine.get_available_embed_models(),
+                                value=self._rag_engine.default_embed_model,
+                                interactive=True,
+                                allow_custom_value=False,
+                            )
                             # with gr.Row():
                             #     pull_btn = gr.Button(
                             #         value="Pull Model", visible=False, min_width=50
@@ -352,9 +314,7 @@ class LocalChatbotUI:
 
                             file_list = gr.Dropdown(
                                 label="Choose file:",
-                                choices=list(
-                                    self._rag_engine._files_registry
-                                ),
+                                choices=list(self._rag_engine._files_registry),
                                 value=None,
                                 interactive=True,
                                 allow_custom_value=True,
@@ -479,11 +439,10 @@ class LocalChatbotUI:
             language.change(self._change_language, inputs=[language]).then(
                 self._clear_chat, outputs=[message, chatbot, status]
             )
-            # model.change(
-            #     self._get_confirm_pull_model,
-            #     inputs=[model],
-            #     outputs=[pull_btn, cancel_btn, status],
-            # )
+            embed_model.change(
+                self._change_embed_model, inputs=[embed_model], outputs=[status]
+            )
+            model.change(self._change_model, inputs=[model], outputs=[status])
             documents.change(
                 self._processing_document,
                 inputs=[documents],
@@ -492,7 +451,9 @@ class LocalChatbotUI:
                 self._show_document_btn,
                 inputs=[documents],
                 outputs=[upload_doc_btn, reset_doc_btn],
-            ).then(self._update_file_list, outputs=[file_list])
+            ).then(
+                self._update_file_list, outputs=[file_list]
+            )
 
             file_list.change(self._change_selected_file, inputs=[file_list])
 
@@ -515,9 +476,19 @@ class LocalChatbotUI:
         return demo
 
 
-if __name__ == "__main__":
+def main(
+    config: str | None = None,
+    host: str = "127.0.0.1",
+    share: bool = False,
+    debug: bool = False,
+    show_api: bool = False,
+):
     logger = Logger(LOG_FILE)
     logger.reset_logs()
-    ui = LocalChatbotUI(logger=logger, host="127.0.0.1")
+    ui = LocalChatbotUI(logger=logger, host=host, rag_yaml_config=config)
 
-    ui.build().launch(share=False, server_name="127.0.0.1", debug=False, show_api=False)
+    ui.build().launch(share=share, server_name=host, debug=debug, show_api=show_api)
+
+
+if __name__ == "__main__":
+    fire.Fire(main)

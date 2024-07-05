@@ -1,0 +1,27 @@
+index_store: ./data/doc_search/index_store
+file_storage: ./data/doc_search/docs
+llm:
+  model: llama3
+  request_timeout: 120.0
+embed_model:
+  type: ollama
+  model_name: mxbai-embed-large
+  max_seq_length: 8192
+  request_timeout: 120.0
+  instruct_prompt: ""
+query_engine:
+  type: QA
+  similarity_top_k: 12
+  hierarchical: false
+parser_config:
+  name: simple_parser
+  loader_name: single_file
+  loader_config:
+    file_extractor: [".md"]
+    recursive: true
+  index_store_name: vector_store_index
+  result_type: markdown
+  parsing_instruction: ""
+  node_parser_name: markdown_node_parser
+  llm_model: null
+  num_workers: 8

@@ -1,0 +1,28 @@
+index_store: ./data/doc_search/index_store
+file_storage: ./data/doc_search/docs
+llm:
+  model: llama3
+  request_timeout: 120.0
+embed_model:
+  type: ollama
+  model_name: mxbai-embed-large
+  max_seq_length: 8192
+  request_timeout: 120.0
+  instruct_prompt: ""
+query_engine:
+  type: QA
+  similarity_top_k: 12
+  hierarchical: false
+parser_config:
+  name: llama_parser
+  loader_name: llama_parse
+  loader_config:
+    file_extractor: [".md"]
+    recursive: true
+  index_store_name: vector_store_index
+  result_type: markdown
+  parsing_instruction: "This document is an insurance policy.
+When a benefits/coverage/exlusion is describe in the document ammend to it add a text in the follwing benefits string format (where coverage could be an exclusion). For {nameofrisk} and in this condition {whenDoesThecoverageApply} the coverage is {coverageDescription}. If the document contain a benefits TABLE that describe coverage amounts, do not ouput it as a table, but instead as a list of benefits string."
+  node_parser_name: markdown_element_node_parser
+  llm_model: null
+  num_workers: 8
