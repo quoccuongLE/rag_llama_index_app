@@ -60,7 +60,7 @@ class LlamaParser(SimpleParser):
         doc_loader = loader_factory.build(
             name=self.parser_config.loader_name,
             file=filename,
-            config=self.parser_config,
+            config=self.parser_config.loader_config,
         )
         documents = doc_loader.load_data(str(filename))
         # NOTE: This parser doesn't use pre-built indexer

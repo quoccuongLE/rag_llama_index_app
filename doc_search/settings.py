@@ -72,6 +72,7 @@ class QAEngineConfig(EngineConfig):
 class LoaderConfig(ConfigParams):
     file_extractor: list[str] = Field(default_factory=lambda: [])
     recursive: bool = Field(default=True)
+    show_progress: bool = Field(default=False)
 
 
 class ParserConfig(ConfigParams):
