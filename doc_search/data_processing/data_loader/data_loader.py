@@ -24,8 +24,8 @@ def get_reader_dict(file_extractor_list: list[str]):
 def build_dir_reader(path: Path, config: LoaderConfig):
     return SimpleDirectoryReader(
         input_dir=path,
-        required_exts=config.reader_config.file_extractor,
-        file_extractor=get_reader_dict(config.reader_config.file_extractor),
+        required_exts=config.loader_config.file_extractor,
+        file_extractor=get_reader_dict(config.loader_config.file_extractor),
         recursive=config.recursive,
     )
 
@@ -35,8 +35,8 @@ def build_simple_file_reader(file: Path, config: LoaderConfig):
     assert file.is_file(), f"This path {str(file)} is not a file"
     return SimpleDirectoryReader(
         input_files=[file],
-        required_exts=config.reader_config.file_extractor,
-        file_extractor=get_reader_dict(config.reader_config.file_extractor),
+        required_exts=config.loader_config.file_extractor,
+        file_extractor=get_reader_dict(config.loader_config.file_extractor),
     )
 
 
@@ -50,6 +50,6 @@ def build_llama_parse_reader(file: Path, config: LoaderConfig):
 def build_multifile_reader(files: list[Path], config: LoaderConfig):
     return SimpleDirectoryReader(
         input_files=files,
-        required_exts=list(config.reader_config.file_extractor.keys()),
-        file_extractor=get_reader_dict(config.reader_config.file_extractor)
+        required_exts=config.loader_config.file_extractor,
+        file_extractor=get_reader_dict(config.loader_config.file_extractor),
     )

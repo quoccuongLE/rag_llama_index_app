@@ -1,5 +1,6 @@
 import copy
 
+from typing import ClassVar
 from llama_index.core.llms import LLM
 from pydantic import BaseModel, Field
 
@@ -65,7 +66,7 @@ class CitationEngineConfig(EngineConfig):
 
 class QAEngineConfig(EngineConfig):
     similarity_top_k: int = Field(default=12)
-    hierarchical: bool = Field(default=False)
+    hierarchical: ClassVar[bool] = Field(default=False)
 
 
 class LoaderConfig(ConfigParams):

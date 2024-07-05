@@ -1,23 +1,21 @@
-from copy import deepcopy
 from pathlib import Path
-from typing import List, Optional
 
-from llama_index.core import VectorStoreIndex
-
-from llama_index.core import StorageContext
+from llama_index.core import StorageContext, VectorStoreIndex
+from llama_index.core.node_parser import MarkdownNodeParser
+from llama_index.core.schema import BaseNode, Document
 from llama_index.core.storage.docstore import SimpleDocumentStore
 
-from llama_index.core.schema import BaseNode, Document
-
 from doc_search.data_processing.indexing import factory
-from llama_index.core.node_parser import MarkdownNodeParser
+from doc_search.settings import ConfigParams
 
 
 @factory.register_builder("vector_store_index")
 def build_vector_store_index(
     dirname: str,
     data_runtime: Path,
-    nodes_or_documents: list[BaseNode] | list[Document]
+    nodes_or_documents: list[BaseNode] | list[Document],
+    config: ConfigParams | None = None,
+    **kwargs
 ) -> tuple[VectorStoreIndex, StorageContext | None]:
     if len(nodes_or_documents) == 0:
         return []
@@ -39,6 +37,8 @@ def build_vector_store_index(
     dirname: str,
     data_runtime: Path,
     nodes_or_documents: list[BaseNode] | list[Document],
+    config: ConfigParams | None = None,
+    **kwargs
 ) -> tuple[VectorStoreIndex, StorageContext | None]:
     if len(nodes_or_documents) == 0:
         return []
@@ -62,6 +62,8 @@ def build_hierarchical_vector_store_index(
     data_runtime: Path,
     nodes: list[BaseNode],
     leaf_nodes: list[BaseNode],
+    config: ConfigParams | None = None,
+    **kwargs
 ) -> tuple[VectorStoreIndex, StorageContext | None]:
 
     docstore = SimpleDocumentStore()

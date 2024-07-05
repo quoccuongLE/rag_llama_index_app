@@ -12,16 +12,11 @@ from llama_index.core.chat_engine.types import StreamingAgentChatResponse
 from llama_index.core.prompts import ChatMessage, MessageRole
 from llama_index.llms.ollama import Ollama
 
-from .data_processing.indexing.data_indexing import (
-    data_indexing,
-    load_single_doc_into_nodes,
-)
-
 from .data_processing.parser import factory as parser_factory
 from .embedding import factory as embedding_factory
 from .prompt import get_system_prompt
 from .query_engine import factory as qengine_factory
-from .query_engine.query_tools import ChatMode
+from .query_engine.query_tools import ChatMode, factory as engine_factory
 from .settings import RAGSetting
 
 _EMBED_MODELS = [
@@ -95,7 +90,7 @@ class DocRetrievalAugmentedGen:
             storage_context = StorageContext.from_defaults(
                 persist_dir=Path(self._setting.index_store)
                 / self.embed_model
-                / f"{filename.name}"
+                / filename.name
             )
             index = load_index_from_storage(storage_context)
             success = True
@@ -104,10 +99,10 @@ class DocRetrievalAugmentedGen:
 
         if forced_indexing or not success:
             self._parser.data_runtime = (
-                Path(self._setting.index_store) / self.embed_model / filename
+                Path(self._setting.index_store) / self.embed_model
             )
             index, storage_context = self._parser.read_file(
-                filename=filename, dirname=filename
+                filename=filename, dirname=filename.name
             )
 
         return index, storage_context
@@ -117,8 +112,8 @@ class DocRetrievalAugmentedGen:
             if not filename.is_file():
                 continue
             if filename not in self._files_registry:
-                _file = Path(filename)
-                self._files_registry.append(_file.name)
+                _filename = Path(filename)
+                self._files_registry.append(_filename.name)
                 index, storage_context = self._read_doc_and_load_index(
                     filename=filename, forced_indexing=forced_indexing
                 )
@@ -126,8 +121,8 @@ class DocRetrievalAugmentedGen:
                     self._doc_index_stores[self.embed_model] = {}
                 if self.embed_model not in self._doc_ctx_stores.keys():
                     self._doc_ctx_stores[self.embed_model] = {}
-                self._doc_index_stores[self.embed_model][_file.name] = index
-                self._doc_ctx_stores[self.embed_model][_file.name] = storage_context
+                self._doc_index_stores[self.embed_model][_filename.name] = index
+                self._doc_ctx_stores[self.embed_model][_filename.name] = storage_context
 
     @property
     def embed_model(self) -> str:
@@ -234,6 +229,7 @@ class DocRetrievalAugmentedGen:
             self.system_prompt = system_prompt
         if chat_mode:
             self._chat_mode = ChatMode(chat_mode)
+            self._setting.query_engine = engine_factory.get_config(chat_mode)
         if system_prompt:
             self.system_prompt = system_prompt
         self.set_model()

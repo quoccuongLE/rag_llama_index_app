@@ -37,6 +37,7 @@ class SimpleParser:
         documents = doc_loader.load_data()
         index, storage_context = indexer_factory.build(
             name=self.parser_config.index_store_name,
+            config=None,
             dirname=dirname,
             data_runtime=self.data_runtime,
             nodes_or_documents=documents,

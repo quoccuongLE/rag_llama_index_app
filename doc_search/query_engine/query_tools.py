@@ -4,22 +4,14 @@ from typing import Any, Generator, Optional, Sequence
 from llama_index.core import StorageContext, VectorStoreIndex
 from llama_index.core.base.response.schema import (RESPONSE_TYPE, Response,
                                                    StreamingResponse)
-from llama_index.core.bridge.pydantic import BaseModel
-from llama_index.core.callbacks.base import CallbackManager
 from llama_index.core.chat_engine import SimpleChatEngine
-from llama_index.core.indices.prompt_helper import PromptHelper
 from llama_index.core.memory import ChatMemoryBuffer
-from llama_index.core.prompts.base import BasePromptTemplate
 from llama_index.core.query_engine import (CitationQueryEngine,
                                            RetrieverQueryEngine)
 from llama_index.core.response_synthesizers import Refine
 from llama_index.core.retrievers import AutoMergingRetriever
 from llama_index.core.schema import NodeWithScore, QueryBundle, QueryType
-from llama_index.core.service_context import ServiceContext
-from llama_index.core.settings import Settings, llm_from_settings_or_context
-from llama_index.core.tools import QueryEngineTool, ToolMetadata
-from llama_index.core.types import BasePydanticProgram
-from llama_index.vector_stores.milvus import MilvusVectorStore
+from llama_index.core.settings import Settings
 
 from doc_search.query_engine import factory
 from doc_search.settings import (CitationEngineConfig, QAEngineConfig,
@@ -91,7 +83,7 @@ class RawBaseSynthesizer(Refine):
         )
 
 @factory.register_builder("semantic search")
-def build_citation_query_engine(
+def build_semantic_search_engine(
     index: VectorStoreIndex,
     config: CitationEngineConfig,
     postprocessors: Optional[list] = None,
@@ -136,3 +128,18 @@ def build_chat_query_engine(
         llm=Settings.llm,
         memory=ChatMemoryBuffer(token_limit=config.chat_token_limit),
     )
+
+
+@factory.register_config("semantic search")
+def build_semantic_search_engine_config():
+    return CitationEngineConfig(type="semantic search")
+
+
+@factory.register_config("QA")
+def build_qa_engine_config():
+    return QAEngineConfig(type="QA")
+
+
+@factory.register_config("chat")
+def build_chat_engine_config():
+    return SimpleChatEngineConfig(type="chat")
