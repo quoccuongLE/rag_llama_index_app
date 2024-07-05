@@ -2,12 +2,9 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 import ollama
-from llama_index.core import (
-    Settings,
-    StorageContext,
-    VectorStoreIndex,
-    load_index_from_storage,
-)
+import yaml
+from llama_index.core import (Settings, StorageContext, VectorStoreIndex,
+                              load_index_from_storage)
 from llama_index.core.chat_engine.types import StreamingAgentChatResponse
 from llama_index.core.prompts import ChatMessage, MessageRole
 from llama_index.llms.ollama import Ollama
@@ -16,7 +13,8 @@ from .data_processing.parser import factory as parser_factory
 from .embedding import factory as embedding_factory
 from .prompt import get_system_prompt
 from .query_engine import factory as qengine_factory
-from .query_engine.query_tools import ChatMode, factory as engine_factory
+from .query_engine.query_tools import ChatMode
+from .query_engine.query_tools import factory as engine_factory
 from .settings import RAGSetting
 
 _EMBED_MODELS = [
@@ -34,14 +32,18 @@ class DocRetrievalAugmentedGen:
 
     def __init__(
         self,
-        host: str = "127.0.0.1",
-        setting: RAGSetting | dict | None = None,
+        setting: RAGSetting | dict | str | None = None,
         chat_mode: str = "QA",
     ) -> None:
-        self._host = host
         self._language: str = "eng"
         self._system_prompt: str = get_system_prompt("eng", is_rag_prompt=False)
-        self._setting = RAGSetting() or setting
+        self._setting = RAGSetting()
+        
+        if isinstance(setting, str):
+            with open(setting, "r") as f:
+                setting = yaml.safe_load(f)
+        self._setting.override(setting)
+
         self._model_name: str = "llama3" or self._setting.llm.model
         self._query_engine = None
         self._parser = parser_factory.build(

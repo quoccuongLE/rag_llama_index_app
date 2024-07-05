@@ -1,6 +1,6 @@
 import os
+from pathlib import Path
 import shutil
-import json
 import sys
 import time
 import gradio as gr
@@ -11,6 +11,7 @@ from llama_index.core.chat_engine.types import StreamingAgentChatResponse
 from doc_search import DocRetrievalAugmentedGen
 from doc_search.logger import Logger
 
+import fire
 
 LOG_FILE = "logging.log"
 DATA_DIR = "data/data"
@@ -118,8 +119,9 @@ class LocalChatbotUI:
         host: str = "127.0.0.1",
         data_dir: str = "data/doc_search/docs",
         avatar_images: List[str] = ["./assets/user.png", "./assets/bot.png"],
+        rag_yaml_config: Path | None = None,
     ):
-        self._rag_engine = DocRetrievalAugmentedGen(host=host)
+        self._rag_engine = DocRetrievalAugmentedGen(setting=rag_yaml_config)
         self._logger = logger
         self._host = host
         self._data_dir = os.path.join(os.getcwd(), data_dir)
@@ -312,9 +314,7 @@ class LocalChatbotUI:
 
                             file_list = gr.Dropdown(
                                 label="Choose file:",
-                                choices=list(
-                                    self._rag_engine._files_registry
-                                ),
+                                choices=list(self._rag_engine._files_registry),
                                 value=None,
                                 interactive=True,
                                 allow_custom_value=True,
@@ -451,7 +451,9 @@ class LocalChatbotUI:
                 self._show_document_btn,
                 inputs=[documents],
                 outputs=[upload_doc_btn, reset_doc_btn],
-            ).then(self._update_file_list, outputs=[file_list])
+            ).then(
+                self._update_file_list, outputs=[file_list]
+            )
 
             file_list.change(self._change_selected_file, inputs=[file_list])
 
@@ -474,9 +476,19 @@ class LocalChatbotUI:
         return demo
 
 
-if __name__ == "__main__":
+def main(
+    config: str | None = None,
+    host: str = "127.0.0.1",
+    share: bool = False,
+    debug: bool = False,
+    show_api: bool = False,
+):
     logger = Logger(LOG_FILE)
     logger.reset_logs()
-    ui = LocalChatbotUI(logger=logger, host="127.0.0.1")
+    ui = LocalChatbotUI(logger=logger, host=host, rag_yaml_config=config)
 
-    ui.build().launch(share=False, server_name="127.0.0.1", debug=False, show_api=False)
+    ui.build().launch(share=share, server_name=host, debug=debug, show_api=show_api)
+
+
+if __name__ == "__main__":
+    fire.Fire(main)

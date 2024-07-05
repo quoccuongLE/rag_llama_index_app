@@ -1,7 +1,8 @@
 from copy import deepcopy
 from pathlib import Path
 
-from llama_index.core import Document, SimpleDirectoryReader, VectorStoreIndex
+from llama_index.core import (Document, Settings, SimpleDirectoryReader,
+                              VectorStoreIndex)
 from llama_index.core.node_parser import (HierarchicalNodeParser,
                                           MarkdownElementNodeParser,
                                           MarkdownNodeParser, NodeParser,
@@ -46,7 +47,7 @@ class SimpleParser:
         return index, storage_context
 
 
-class LlamaParser:
+class LlamaParser(SimpleParser):
 
     node_parser: NodeParser = MarkdownNodeParser()
 
@@ -57,9 +58,12 @@ class LlamaParser:
     def read_file(self, filename: Path, dirname: str):
         assert filename.is_file(), f"Input path {filename} is not a file !"
         doc_loader = loader_factory.build(
-            name=self.loader_config.loader_name, file=filename, config=self.loader_config
+            name=self.parser_config.loader_name,
+            file=filename,
+            config=self.parser_config,
         )
-        documents = doc_loader(filename)
+        documents = doc_loader.load_data(str(filename))
+        # NOTE: This parser doesn't use pre-built indexer
         nodes = self.node_parser.get_nodes_from_documents(documents)
         base_nodes, objects = self.node_parser.get_nodes_and_objects(nodes)
 
@@ -80,8 +84,12 @@ def build_llama_parser(data_runtime: Path, config: ParserConfig):
         case "markdown_node_parser":
             node_parser = MarkdownNodeParser()
         case "markdown_element_node_parser":
+            if config.llm_model:
+                llm = Ollama(model=config.llm_model)
+            else:
+                llm = Settings.llm
             node_parser = MarkdownElementNodeParser(
-                llm=Ollama(config.llm_model), num_workers=config.num_workers
+                llm=llm, num_workers=config.num_workers
             )
         case _:
             raise ValueError(f"{config.node_parser_name} invalid !")

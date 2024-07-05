@@ -66,7 +66,7 @@ class CitationEngineConfig(EngineConfig):
 
 class QAEngineConfig(EngineConfig):
     similarity_top_k: int = Field(default=12)
-    hierarchical: ClassVar[bool] = Field(default=False)
+    hierarchical: bool = Field(default=False)
 
 
 class LoaderConfig(ConfigParams):

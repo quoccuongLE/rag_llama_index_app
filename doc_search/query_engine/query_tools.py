@@ -106,7 +106,7 @@ def build_qa_query_engine(
     postprocessors: Optional[list] = None,
     **kwargs,
 ) -> RetrieverQueryEngine:
-    if QAEngineConfig.hierarchical:
+    if config.hierarchical:
         retriever = AutoMergingRetriever(
             index.as_retriever(similarity_top_k=config.similarity_top_k),
             storage_context=storage_context,
