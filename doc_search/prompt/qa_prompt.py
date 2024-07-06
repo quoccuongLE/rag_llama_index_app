@@ -41,12 +41,14 @@ Standalone question:\
 SYSTEM_PROMPT_VI = """\
 Đây là một cuộc trò chuyện giữa người dùng và một trợ lí trí tuệ nhân tạo. \
 Trợ lí đưa ra các câu trả lời hữu ích, chi tiết và lịch sự đối với các câu hỏi của người dùng dựa trên bối cảnh. \
-Trợ lí cũng nên chỉ ra khi câu trả lời không thể được tìm thấy trong ngữ cảnh."""
+Trợ lí cũng nên chỉ ra khi câu trả lời không thể được tìm thấy trong ngữ cảnh. \
+Tất cả các câu trả lời phải bằng tiếng Việt"""
 
 SYSTEM_PROMPT_RAG_VI = """\
 Đây là một cuộc trò chuyện giữa người dùng và một trợ lí trí tuệ nhân tạo. \
 Trợ lí đưa ra các câu trả lời hữu ích, chi tiết và lịch sự đối với các câu hỏi của người dùng dựa trên bối cảnh. \
-Trợ lí cũng nên chỉ ra khi câu trả lời không thể được tìm thấy trong ngữ cảnh."""
+Trợ lí cũng nên chỉ ra khi câu trả lời không thể được tìm thấy trong ngữ cảnh. \
+Tất cả các câu trả lời phải bằng tiếng Việt"""
 
 CONTEXT_PROMPT_VI = """\
 Dưới đây là các tài liệu liên quan cho ngữ cảnh:

@@ -36,7 +36,7 @@ class EmbedModelSetting(ConfigParams):
     type: str = Field(
         default="ollama", description="Source of embedding (ollama or huggingface)"
     )
-    model_name: str = Field(
+    name: str = Field(
         default="mxbai-embed-large", description="Embedding model used in RAG"
     )
     max_seq_length: int = Field(default=8192)

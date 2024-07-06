@@ -5,7 +5,7 @@ llm:
   request_timeout: 120.0
 embed_model:
   type: ollama
-  model_name: mxbai-embed-large
+  name: mxbai-embed-large
   max_seq_length: 8192
   request_timeout: 120.0
   instruct_prompt: ""
@@ -24,5 +24,7 @@ parser_config:
   instruct_prompt: "This document is an insurance policy.
 When a benefits/coverage/exlusion is describe in the document ammend to it add a text in the follwing benefits string format (where coverage could be an exclusion). For {nameofrisk} and in this condition {whenDoesThecoverageApply} the coverage is {coverageDescription}. If the document contain a benefits TABLE that describe coverage amounts, do not ouput it as a table, but instead as a list of benefits string."
   node_parser_name: markdown_element_node_parser
-  llm_model: null
+  llm:
+    model: gemma2
+    request_timeout: 120.0
   num_workers: 8

@@ -40,9 +40,9 @@ class EmbedModel(BaseEmbedding):
 
 @factory.register_builder('huggingface')
 def build_embed_model(config: EmbedModelSetting):
-    return EmbedModel(model=config.model_name, max_seq_length=config.max_seq_length)
+    return EmbedModel(model=config.name, max_seq_length=config.max_seq_length)
 
 
 @factory.register_builder("ollama")
 def build_ollama_model(config: EmbedModelSetting):
-    return OllamaEmbedding(model_name=config.model_name)
+    return OllamaEmbedding(model_name=config.name)

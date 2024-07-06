@@ -122,7 +122,7 @@ class DocRetrievalAugmentedGen:
 
     @property
     def embed_model(self) -> str:
-        return self._setting.embed_model.model_name
+        return self._setting.embed_model.name
 
     @embed_model.setter
     def embed_model(self, model: str):
@@ -245,6 +245,5 @@ class DocRetrievalAugmentedGen:
             history = self.get_history(chatbot)
             return self._query_engine.stream_chat(message, history)
         else:
-            # self._query_engine.reset()
+            # TODO: Setup a system of synchronizing prompts while switching between languages
             return self._query_engine.query(message)
-            # return self._query_engine(message)
