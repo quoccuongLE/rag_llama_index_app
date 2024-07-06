@@ -47,21 +47,35 @@ class EmbedModelSetting(ConfigParams):
 
 class RawBaseSynthesizerConfig(ConfigParams):
     topk: int = Field(default=5)
-    sample_length: int = Field(default=200)
+    sample_length: int = Field(default=300)
 
 
 class EngineConfig(ConfigParams):
     type: str = Field(default="QA")
 
+    # SimpleChatEngine
+    chat_token_limit: int = Field(default=4000)
 
+    # CitationEngine
+    citation_chunk_size: int = Field(default=512)
+    similarity_top_k: int = Field(default=5)
+    synthesizer: RawBaseSynthesizerConfig = Field(default_factory=RawBaseSynthesizerConfig)
+
+    # QAEngine
+    hierarchical: bool = Field(default=False)
+
+# TODO: Refacto EngineConfig
 class SimpleChatEngineConfig(EngineConfig):
     chat_token_limit: int = Field(default=4000)
 
 
 class CitationEngineConfig(EngineConfig):
+
     citation_chunk_size: int = Field(default=512)
     similarity_top_k: int = Field(default=5)
-    synthesizer: RawBaseSynthesizerConfig = Field(default_factory=RawBaseSynthesizerConfig)
+    synthesizer: RawBaseSynthesizerConfig = Field(
+        default_factory=RawBaseSynthesizerConfig
+    )
 
 
 class QAEngineConfig(EngineConfig):

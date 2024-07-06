@@ -38,7 +38,7 @@ class DocRetrievalAugmentedGen:
         self._language: str = "eng"
         self._system_prompt: str = get_system_prompt("eng", is_rag_prompt=False)
         self._setting = RAGSetting()
-        
+
         if isinstance(setting, str):
             with open(setting, "r") as f:
                 setting = yaml.safe_load(f)
@@ -212,8 +212,8 @@ class DocRetrievalAugmentedGen:
     def add_new_nodes(self, input_files: List[str] = None) -> None:
         for file in input_files:
             if file not in self._files_registry:
-                self._files_registry.append(file)
                 filename = Path(file)
+                self._files_registry.append(filename.name)
                 index, storage_context = self._read_doc_and_load_index(
                     filename=filename, forced_indexing=True
                 )
@@ -222,8 +222,9 @@ class DocRetrievalAugmentedGen:
 
     def set_chat_mode(
         self,
-        system_prompt: Optional[str] = None,
         chat_mode: Optional[str] = None,
+        chat_config: Optional[dict] = None,
+        system_prompt: Optional[str] = None,
         language: Optional[str] = None,
     ):
         if language:
@@ -231,7 +232,8 @@ class DocRetrievalAugmentedGen:
             self.system_prompt = system_prompt
         if chat_mode:
             self._chat_mode = ChatMode(chat_mode)
-            self._setting.query_engine = engine_factory.get_config(chat_mode)
+            # self._setting.query_engine = engine_factory.get_config(chat_mode)
+            self._setting.query_engine.override(chat_config or {})
         if system_prompt:
             self.system_prompt = system_prompt
         self.set_model()

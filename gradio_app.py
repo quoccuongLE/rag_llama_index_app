@@ -222,9 +222,20 @@ class LocalChatbotUI:
         self._rag_engine.set_chat_mode(language=language)
         gr.Info(f"Change language to {language}")
 
-    def _change_chat_mode(self, chat_mode: str):
-        self._rag_engine.set_chat_mode(chat_mode=chat_mode)
+    def _change_chat_mode(self, chat_mode: str, topk: int, nb_extract_char: int):
+        chat_config = dict(type=chat_mode)
+        visible = chat_mode == "semantic search"
+        if visible:
+            chat_config.update(
+                dict(synthesizer=dict(topk=topk, sample_length=nb_extract_char))
+            )
+        self._rag_engine.set_chat_mode(chat_mode=chat_mode, chat_config=chat_config)
         gr.Info(f"Change chat mode to {chat_mode}")
+        return (
+            gr.update(visible=visible),
+            gr.update(visible=visible),
+            gr.update(visible=visible),
+        )
 
     def _change_selected_file(self, filename: str):
         self._rag_engine._query_engine_name = filename
@@ -364,10 +375,24 @@ class LocalChatbotUI:
                             message = gr.MultimodalTextbox(
                                 value=DefaultElement.DEFAULT_MESSAGE,
                                 placeholder="Enter you message:",
-                                file_types=[".txt", ".pdf", ".csv"],
                                 show_label=False,
                                 scale=6,
                                 lines=1,
+                            )
+                        with gr.Row():
+                            top_k = gr.Slider(
+                                minimum=1,
+                                maximum=30,
+                                value=5,
+                                step=1,
+                                visible=False,
+                                show_label=False,
+                            )
+                            nb_extract_char = gr.Number(
+                                value=300, visible=False, show_label=False
+                            )
+                            search_update_btn = gr.Button(
+                                value="Update", min_width=10, visible=False
                             )
                         with gr.Row(variant=self._variant):
                             ui_btn = gr.Button(
@@ -426,16 +451,28 @@ class LocalChatbotUI:
             # ).then(
             #     self._change_model, inputs=[model], outputs=[status]
             # )
+            # message.submit(
+            #     self._upload_document, inputs=[documents, message], outputs=[documents]
+            # ).then(
+            #     self._get_respone,
+            #     inputs=[chat_mode, message, chatbot],
+            #     outputs=[message, chatbot, status],
+            # )
             message.submit(
-                self._upload_document, inputs=[documents, message], outputs=[documents]
-            ).then(
                 self._get_respone,
                 inputs=[chat_mode, message, chatbot],
                 outputs=[message, chatbot, status],
             )
-            chat_mode.change(self._change_chat_mode, inputs=[chat_mode]).then(
-                self._rag_engine.reset_conversation
-            ).then(self._clear_chat, outputs=[message, chatbot, status])
+            chat_mode.change(
+                self._change_chat_mode,
+                inputs=[chat_mode, top_k, nb_extract_char],
+                outputs=[top_k, nb_extract_char, search_update_btn],
+            ).then(self._rag_engine.reset_conversation).then(
+                self._clear_chat, outputs=[message, chatbot, status]
+            )
+            search_update_btn.click(
+                self._change_chat_mode, inputs=[chat_mode, top_k, nb_extract_char]
+            )
             language.change(self._change_language, inputs=[language]).then(
                 self._clear_chat, outputs=[message, chatbot, status]
             )
