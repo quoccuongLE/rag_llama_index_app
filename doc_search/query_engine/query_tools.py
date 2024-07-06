@@ -2,20 +2,28 @@ from enum import Enum
 from typing import Any, Generator, Optional, Sequence
 
 from llama_index.core import StorageContext, VectorStoreIndex
-from llama_index.core.base.response.schema import (RESPONSE_TYPE, Response,
-                                                   StreamingResponse)
+from llama_index.core.base.response.schema import (
+    RESPONSE_TYPE,
+    Response,
+    StreamingResponse,
+)
 from llama_index.core.chat_engine import SimpleChatEngine
 from llama_index.core.memory import ChatMemoryBuffer
-from llama_index.core.query_engine import (CitationQueryEngine,
-                                           RetrieverQueryEngine)
+from llama_index.core.prompts import PromptTemplate
+from llama_index.core.query_engine import CitationQueryEngine, RetrieverQueryEngine
 from llama_index.core.response_synthesizers import Refine
 from llama_index.core.retrievers import AutoMergingRetriever
 from llama_index.core.schema import NodeWithScore, QueryBundle, QueryType
 from llama_index.core.settings import Settings
 
+from doc_search.prompt.qa_prompt import qa_template
 from doc_search.query_engine import factory
-from doc_search.settings import (CitationEngineConfig, QAEngineConfig,
-                                 SimpleChatEngineConfig)
+from doc_search.settings import (
+    EngineConfig,
+    CitationEngineConfig,
+    QAEngineConfig,
+    SimpleChatEngineConfig,
+)
 
 
 class ChatMode(str, Enum):
@@ -29,7 +37,7 @@ def empty_response_generator() -> Generator[str, None, None]:
 
 
 class RawBaseSynthesizer(Refine):
-    def __init__(self, topk: int = 5, sample_length: int = 200, **kwargs) -> None:
+    def __init__(self, topk: int = 5, sample_length: int = 300, **kwargs) -> None:
         self._topk = topk
         self._sample_length = sample_length
         super().__init__(**kwargs)
@@ -71,9 +79,8 @@ class RawBaseSynthesizer(Refine):
                     f"({i}) - Page {page_number} \nText:\t",
                     extract,
                     "...",
-                    # f"Metadata:\t {node.node.metadata}",
                     f"\nScore:\t {node.score:.3f}\n"
-                    "\n[ ---- * ---- * ---- * ---- ]\n",
+                    "\n_______________________________________________\n",
                 ]
             )
         return Response(
@@ -82,10 +89,11 @@ class RawBaseSynthesizer(Refine):
             metadata=response_metadata,
         )
 
+
 @factory.register_builder("semantic search")
 def build_semantic_search_engine(
     index: VectorStoreIndex,
-    config: CitationEngineConfig,
+    config: EngineConfig,
     postprocessors: Optional[list] = None,
     **kwargs,
 ) -> CitationQueryEngine:
@@ -93,6 +101,7 @@ def build_semantic_search_engine(
         index,
         response_synthesizer=RawBaseSynthesizer(**config.synthesizer.model_dump()),
         citation_chunk_size=config.citation_chunk_size,
+        citation_qa_template=PromptTemplate(qa_template),
         similarity_top_k=config.similarity_top_k,
         node_postprocessors=postprocessors or [],
     )
@@ -102,7 +111,7 @@ def build_semantic_search_engine(
 def build_qa_query_engine(
     index: VectorStoreIndex,
     storage_context: StorageContext,
-    config: QAEngineConfig,
+    config: EngineConfig,
     postprocessors: Optional[list] = None,
     **kwargs,
 ) -> RetrieverQueryEngine:
@@ -130,6 +139,7 @@ def build_chat_query_engine(
     )
 
 
+# NOTE: Config builder
 @factory.register_config("semantic search")
 def build_semantic_search_engine_config():
     return CitationEngineConfig(type="semantic search")
