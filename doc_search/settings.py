@@ -24,9 +24,12 @@ class ConfigParams(BaseModel, extra="allow"):
 
 
 class LLMSetting(ConfigParams):
+    type: str = Field(default="ollama")
     model: str = Field(default="llama3", description="LLM model used in RAG")
     system_prompt: str = Field(default=get_system_prompt(language="eng", is_rag_prompt=False))
     request_timeout: float = Field(default=120.0, description="Timeout for query requesting to Ollama server")
+    host: str = Field(default="localhost")
+    port: int = Field(default="11434")
 
 
 class EmbedModelSetting(ConfigParams):
@@ -99,12 +102,12 @@ class ParserConfig(ConfigParams):
     # Indexing config
     index_store_name: str = Field(default="vector_store_index")
     result_type: str = Field(default="markdown")
-    parsing_instruction: str = Field(default="")
+    instruct_prompt: str = Field(default="")
 
     # node parser config
     node_parser_name: str = Field(default="markdown_node_parser")
-    llm_model: str = Field(default="llama3")
     num_workers: int = Field(default=8)
+    llm: LLMSetting = Field(default_factory=LLMSetting)
 
 
 class RAGSetting(ConfigParams):

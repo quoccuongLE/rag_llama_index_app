@@ -7,14 +7,13 @@ from llama_index.core import (Settings, StorageContext, VectorStoreIndex,
                               load_index_from_storage)
 from llama_index.core.chat_engine.types import StreamingAgentChatResponse
 from llama_index.core.prompts import ChatMessage, MessageRole
-from llama_index.llms.ollama import Ollama
 
 from .data_processing.parser import factory as parser_factory
 from .embedding import factory as embedding_factory
+from .llm import factory as llm_factory
 from .prompt import get_system_prompt
 from .query_engine import factory as qengine_factory
 from .query_engine.query_tools import ChatMode
-from .query_engine.query_tools import factory as engine_factory
 from .settings import RAGSetting
 
 _EMBED_MODELS = [
@@ -44,18 +43,13 @@ class DocRetrievalAugmentedGen:
                 setting = yaml.safe_load(f)
         self._setting.override(setting)
 
-        self._model_name: str = "llama3" or self._setting.llm.model
+        self._model_name: str = self._setting.llm.model or "llama3"
         self._query_engine = None
         self._parser = parser_factory.build(
             config=self._setting.parser_config, data_runtime=self._setting.index_store
         )
 
-        Settings.llm = Ollama(
-            model=self._setting.llm.model,
-            system_prompt=self._system_prompt,
-            request_timeout=self._setting.llm.request_timeout,
-        )
-
+        Settings.llm = llm_factory.build(config=self._setting.llm)
         Settings.embed_model = embedding_factory.build(self._setting.embed_model)
 
         self._query_engine_name: str = ""
@@ -76,7 +70,7 @@ class DocRetrievalAugmentedGen:
 
     @property
     def default_model(self) -> str:
-        return "ollama/llama3"
+        return f"ollama/{self._model_name}"
 
     def get_available_embed_models(self) -> list[str]:
         return _EMBED_MODELS
@@ -142,7 +136,9 @@ class DocRetrievalAugmentedGen:
 
     @model.setter
     def model(self, model: str):
-        self._setting.llm.model = model
+        model_type, model_name = tuple(model.split("/", 1))
+        self._setting.llm.model = model_name
+        self._setting.llm.type = model_type
         self.set_model()
 
     @property
@@ -177,11 +173,7 @@ class DocRetrievalAugmentedGen:
         )
 
     def set_model(self):
-        Settings.llm = Ollama(
-            model=self._setting.llm.model,
-            system_prompt=self._system_prompt,
-            request_timeout=self._setting.llm.request_timeout,
-        )
+        Settings.llm = llm_factory.build(config=self._setting.llm)
 
     def reset_engine(self):
         if self.embed_model not in self._doc_index_stores.keys():
@@ -232,7 +224,6 @@ class DocRetrievalAugmentedGen:
             self.system_prompt = system_prompt
         if chat_mode:
             self._chat_mode = ChatMode(chat_mode)
-            # self._setting.query_engine = engine_factory.get_config(chat_mode)
             self._setting.query_engine.override(chat_config or {})
         if system_prompt:
             self.system_prompt = system_prompt

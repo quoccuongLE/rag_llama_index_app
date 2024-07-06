@@ -8,10 +8,10 @@ from llama_index.core.node_parser import (HierarchicalNodeParser,
                                           MarkdownNodeParser, NodeParser,
                                           SentenceSplitter, get_leaf_nodes)
 from llama_index.core.schema import BaseNode, Document, MetadataMode, TextNode
-from llama_index.llms.ollama import Ollama
 
 from doc_search.data_processing.data_loader import factory as loader_factory
 from doc_search.data_processing.indexing import factory as indexer_factory
+from doc_search.llm import factory as llm_factory
 from doc_search.data_processing.parser import factory
 from doc_search.settings import ParserConfig
 
@@ -84,10 +84,7 @@ def build_llama_parser(data_runtime: Path, config: ParserConfig):
         case "markdown_node_parser":
             node_parser = MarkdownNodeParser()
         case "markdown_element_node_parser":
-            if config.llm_model:
-                llm = Ollama(model=config.llm_model)
-            else:
-                llm = Settings.llm
+            llm = llm_factory.build(name="ollama", config=config.llm, prompt=config.instruct_prompt)
             node_parser = MarkdownElementNodeParser(
                 llm=llm, num_workers=config.num_workers
             )

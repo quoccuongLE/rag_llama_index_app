@@ -21,7 +21,7 @@ parser_config:
     recursive: true
   index_store_name: vector_store_index
   result_type: markdown
-  parsing_instruction: "This document is an insurance policy.
+  instruct_prompt: "This document is an insurance policy.
 When a benefits/coverage/exlusion is describe in the document ammend to it add a text in the follwing benefits string format (where coverage could be an exclusion). For {nameofrisk} and in this condition {whenDoesThecoverageApply} the coverage is {coverageDescription}. If the document contain a benefits TABLE that describe coverage amounts, do not ouput it as a table, but instead as a list of benefits string."
   node_parser_name: markdown_element_node_parser
   llm_model: null
