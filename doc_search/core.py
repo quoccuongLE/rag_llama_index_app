@@ -22,8 +22,8 @@ _EMBED_MODELS = [
     "ollama/all-minilm",
     "ollama/snowflake-arctic-embed",
     "huggingface/Alibaba-NLP/gte-Qwen2-1.5B-instruct",
-    "intfloat/multilingual-e5-large-instruct",  # instrauct added into query
-    "intfloat/multilingual-e5-small",
+    "huggingface/intfloat/multilingual-e5-large-instruct",  # instruct added into query
+    "huggingface/intfloat/multilingual-e5-small",
 ]
 
 
