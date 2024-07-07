@@ -1,7 +1,7 @@
 from pathlib import Path
 from doc_search.data_processing.data_loader import factory
 
-from llama_docs_utils.markdown_docs_reader import MarkdownDocsReader
+from .markdown_docs_reader import MarkdownDocsReader
 
 from llama_index.core import SimpleDirectoryReader
 

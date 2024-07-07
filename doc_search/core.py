@@ -179,8 +179,12 @@ class DocRetrievalAugmentedGen:
         if self.embed_model not in self._doc_index_stores.keys():
             self._load_index_stores()
 
-        idx = self._doc_index_stores[self.embed_model][self._query_engine_name]
-        storage_ctx = self._doc_ctx_stores[self.embed_model][self._query_engine_name]
+        if self._chat_mode in [ChatMode.QA, ChatMode.SEMANTIC_SEARCH]:
+            idx = self._doc_index_stores[self.embed_model][self._query_engine_name]
+            storage_ctx = self._doc_ctx_stores[self.embed_model][self._query_engine_name]
+        else:
+            idx, storage_ctx = None, None
+
         self._query_engine = qengine_factory.build(
             name=self._chat_mode.value,
             config=self._setting.query_engine,
