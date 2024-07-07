@@ -16,7 +16,7 @@ Requirement:
 
 - OS: Linux, Ubuntu (*Windows not tested yet, but possible*)
 
-- Modern GPU Nvidia with >=8Gb (recommended). It is possible to run **Ollama** on other GPUs such as AMD, ARC Intel, or Apple M1. For more details, please consult information at [Ollama Git repository](https://github.com/ollama/ollama/blob/main/docs/gpu.md)
+- *[Required for local LLM deployment]* Modern GPU Nvidia with >=8Gb (recommended). It is possible to run **Ollama** on other GPUs such as AMD, ARC Intel, or Apple M1. For more details, please consult information at [Ollama Git repository](https://github.com/ollama/ollama/blob/main/docs/gpu.md)
 
 - [Miniconda](https://docs.anaconda.com/miniconda/miniconda-install/) or [Conda](https://www.anaconda.com/download/success)
 
