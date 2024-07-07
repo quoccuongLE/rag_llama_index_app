@@ -38,7 +38,7 @@ The detail of required python packages can be de seen in ``conda.yaml`` and ``lo
 The installation/ update command is 
 ```curl -fsSL https://ollama.com/install.sh | sh```
 
-Pull LLMs from [Ollama library](https://ollama.com/library). 
+Pull/download models (LLMs) from [Ollama library](https://ollama.com/library). 
 
 *(Note: we use 4-bit quantized models of inference efficiency*)
 
@@ -143,6 +143,8 @@ Run the following command
 
 The gradio app is accessible at https://127.0.0.1:7860 or https://localhost:7860
 
+# Evaluation
+
 ----------------------
 **Under developement**
 
@@ -151,8 +153,6 @@ The gradio app is accessible at https://127.0.0.1:7860 or https://localhost:7860
 ...
 
 ----------------------
-
-# Evaluation
 
 # Acknowledgement
 
