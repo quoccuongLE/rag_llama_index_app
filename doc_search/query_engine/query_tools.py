@@ -7,14 +7,16 @@ from llama_index.core.base.response.schema import (
     Response,
     StreamingResponse,
 )
-from llama_index.core.chat_engine import SimpleChatEngine
+from llama_index.core.chat_engine import SimpleChatEngine, ContextChatEngine
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core.prompts import PromptTemplate
-from llama_index.core.query_engine import CitationQueryEngine, RetrieverQueryEngine
+from llama_index.core.query_engine import CitationQueryEngine
 from llama_index.core.response_synthesizers import Refine
 from llama_index.core.retrievers import AutoMergingRetriever
 from llama_index.core.schema import NodeWithScore, QueryBundle, QueryType
 from llama_index.core.settings import Settings
+
+from llama_index.core.llms import ChatMessage
 
 from doc_search.prompt.qa_prompt import qa_template
 from doc_search.query_engine import factory
@@ -114,7 +116,7 @@ def build_qa_query_engine(
     config: EngineConfig,
     postprocessors: Optional[list] = None,
     **kwargs,
-) -> RetrieverQueryEngine:
+) -> ContextChatEngine:
     if config.hierarchical:
         retriever = AutoMergingRetriever(
             index.as_retriever(similarity_top_k=config.similarity_top_k),
@@ -123,16 +125,24 @@ def build_qa_query_engine(
     else:
         retriever = index.as_retriever(similarity_top_k=config.similarity_top_k)
 
-    return RetrieverQueryEngine.from_args(
-        retriever,
+    return ContextChatEngine(
+        prefix_messages=[ChatMessage.from_str(content=config.prefix_messages, role="system")],
+        retriever=retriever,
+        llm=Settings.llm,
+        memory=ChatMemoryBuffer(token_limit=config.chat_token_limit),
         node_postprocessors=postprocessors or [],
     )
+
+    # return RetrieverQueryEngine.from_args(
+    #     retriever,
+    #     node_postprocessors=postprocessors or [],
+    # )
 
 
 @factory.register_builder("chat")
 def build_chat_query_engine(
     config: SimpleChatEngineConfig, **kwargs
-) -> RetrieverQueryEngine:
+) -> SimpleChatEngine:
     return SimpleChatEngine.from_defaults(
         llm=Settings.llm,
         memory=ChatMemoryBuffer(token_limit=config.chat_token_limit),
