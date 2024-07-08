@@ -147,14 +147,9 @@ The gradio app is accessible at https://127.0.0.1:7860 or https://localhost:7860
 
 # Evaluation
 
-----------------------
-**Under developement**
+- [ ] Implement an evaluation protocol based on paper:
 
-...
-
-...
-
-----------------------
+  * Hallucination-Free? Assessing the Reliability of Leading AI Legal Research Tools - (Stanford University & Yale University) [[pdf]](https://dho.stanford.edu/wp-content/uploads/Legal_RAG_Hallucinations.pdf)
 
 # Acknowledgement
 
