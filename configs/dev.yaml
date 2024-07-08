@@ -13,17 +13,20 @@ query_engine:
   type: QA
   similarity_top_k: 12
   hierarchical: false
+  chat_token_limit: 12000
+  synthesizer:
+    topk: 5
+    sample_length: 300
 parser_config:
-  name: simple_parser
-  loader_name: single_file
+  name: llama_parser # simple_parser  llama_parser
+  loader_name: pdf_markdown_reader # single_file  llama_parse  pdf_markdown_reader
   loader_config:
-    file_extractor: [".md"]
-    recursive: true
+    show_progress: true
   index_store_name: vector_store_index
   result_type: markdown
-  parsing_instruction: ""
-  node_parser_name: markdown_node_parser
+  instruct_prompt: ""
+  node_parser_name: markdown_element_node_parser # markdown_node_parser  markdown_element_node_parser
   llm:
-    model: gemma2
+    model: llama3
     request_timeout: 120.0
   num_workers: 8

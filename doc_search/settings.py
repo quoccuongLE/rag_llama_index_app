@@ -1,6 +1,5 @@
 import copy
 
-from typing import ClassVar
 from llama_index.core.llms import LLM
 from pydantic import BaseModel, Field
 
@@ -27,9 +26,10 @@ class LLMSetting(ConfigParams):
     type: str = Field(default="ollama")
     model: str = Field(default="llama3", description="LLM model used in RAG")
     system_prompt: str = Field(default=get_system_prompt(language="eng", is_rag_prompt=False))
+    temperature: float = Field(default=0.5, description="The temperature to use for sampling.")
     request_timeout: float = Field(default=120.0, description="Timeout for query requesting to Ollama server")
     host: str = Field(default="localhost")
-    port: int = Field(default="11434")
+    port: int = Field(default=11434)
 
 
 class EmbedModelSetting(ConfigParams):
@@ -39,6 +39,8 @@ class EmbedModelSetting(ConfigParams):
     name: str = Field(
         default="mxbai-embed-large", description="Embedding model used in RAG"
     )
+    host: str = Field(default="localhost")
+    port: int = Field(default=11434)
     max_seq_length: int = Field(default=8192)
     request_timeout: float = Field(
         default=120.0, description="Timeout for query requesting to Ollama server"
@@ -57,7 +59,7 @@ class EngineConfig(ConfigParams):
     type: str = Field(default="QA")
 
     # SimpleChatEngine
-    chat_token_limit: int = Field(default=4000)
+    chat_token_limit: int = Field(default=8000)
 
     # CitationEngine
     citation_chunk_size: int = Field(default=512)
@@ -65,11 +67,14 @@ class EngineConfig(ConfigParams):
     synthesizer: RawBaseSynthesizerConfig = Field(default_factory=RawBaseSynthesizerConfig)
 
     # QAEngine
+    prefix_messages: str = Field(
+        default="You are given a context, please answer the question solely on that context."
+    )
     hierarchical: bool = Field(default=False)
 
 # TODO: Refacto EngineConfig
 class SimpleChatEngineConfig(EngineConfig):
-    chat_token_limit: int = Field(default=4000)
+    chat_token_limit: int = Field(default=8000)
 
 
 class CitationEngineConfig(EngineConfig):

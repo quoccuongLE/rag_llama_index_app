@@ -279,11 +279,7 @@ class LocalChatbotUI:
         return gr.Dropdown(choices=self._rag_engine._files_registry)
 
     def build(self):
-        with gr.Blocks(
-            theme=gr.themes.Soft(primary_hue="slate"),
-            js=JS_LIGHT_THEME,
-            css=CSS,
-        ) as demo:
+        with gr.Blocks(theme="ParityError/Interstellar") as demo:
             gr.Markdown("## QA semantic search powered by LLM")
             with gr.Tab("Interface"):
                 sidebar_state = gr.State(True)
@@ -295,11 +291,12 @@ class LocalChatbotUI:
                             status = gr.Textbox(
                                 label="Status", value="Ready!", interactive=False
                             )
-                            language = gr.Radio(
-                                label="Language",
+                            language = gr.Dropdown(
+                                label="User Language",
                                 choices=["vi", "eng"],
                                 value="eng",
                                 interactive=True,
+                                visible=False,
                             )
                             model = gr.Dropdown(
                                 label="Choose LLM:",

@@ -3,10 +3,17 @@ from typing import List, Optional, Tuple
 
 import ollama
 import yaml
-from llama_index.core import (Settings, StorageContext, VectorStoreIndex,
-                              load_index_from_storage)
+from llama_index.core import (
+    Settings,
+    StorageContext,
+    VectorStoreIndex,
+    load_index_from_storage,
+)
 from llama_index.core.chat_engine.types import StreamingAgentChatResponse
 from llama_index.core.prompts import ChatMessage, MessageRole
+from llama_index.core.base.response.schema import Response
+
+from llama_index.core.query_engine import CitationQueryEngine
 
 from .data_processing.parser import factory as parser_factory
 from .embedding import factory as embedding_factory
@@ -139,6 +146,9 @@ class DocRetrievalAugmentedGen:
         model_type, model_name = tuple(model.split("/", 1))
         self._setting.llm.model = model_name
         self._setting.llm.type = model_type
+        # Align with other llm modules
+        self._setting.parser_config.llm.model = model_name
+        self._setting.parser_config.llm.type = model_type
         self.set_model()
 
     @property
@@ -179,18 +189,29 @@ class DocRetrievalAugmentedGen:
         if self.embed_model not in self._doc_index_stores.keys():
             self._load_index_stores()
 
-        if self._chat_mode in [ChatMode.QA, ChatMode.SEMANTIC_SEARCH]:
+        if self._chat_mode == ChatMode.CHAT:
+            self._query_engine = qengine_factory.build(
+                name=self._chat_mode.value,
+                config=self._setting.query_engine,
+                index=None,
+                storage_context=None,
+            )
+        elif (
+            self._chat_mode in [ChatMode.QA, ChatMode.SEMANTIC_SEARCH]
+            and self._query_engine_name != ""
+        ):
             idx = self._doc_index_stores[self.embed_model][self._query_engine_name]
-            storage_ctx = self._doc_ctx_stores[self.embed_model][self._query_engine_name]
+            storage_ctx = self._doc_ctx_stores[self.embed_model][
+                self._query_engine_name
+            ]
+            self._query_engine = qengine_factory.build(
+                name=self._chat_mode.value,
+                config=self._setting.query_engine,
+                index=idx,
+                storage_context=storage_ctx,
+            )
         else:
-            idx, storage_ctx = None, None
-
-        self._query_engine = qengine_factory.build(
-            name=self._chat_mode.value,
-            config=self._setting.query_engine,
-            index=idx,
-            storage_context=storage_ctx,
-        )
+            self._query_engine = None
 
     def clear_conversation(self):
         if self._chat_mode == ChatMode.CHAT:
@@ -245,9 +266,13 @@ class DocRetrievalAugmentedGen:
     def query(
         self, mode: str, message: str, chatbot: List[List[str]]
     ) -> StreamingAgentChatResponse:
-        if mode == "chat":
+        # TODO: Setup a system of synchronizing prompts while switching between languages
+        if self._query_engine is None:
+            return Response(
+                response="Please select a file you want to query information! Or you want to switch to chat mode ?"
+            )
+        if isinstance(self._query_engine, CitationQueryEngine):
+            return self._query_engine.query(message)
+        else:
             history = self.get_history(chatbot)
             return self._query_engine.stream_chat(message, history)
-        else:
-            # TODO: Setup a system of synchronizing prompts while switching between languages
-            return self._query_engine.query(message)

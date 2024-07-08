@@ -2,6 +2,8 @@
 
 Unleash potential utilities of **L**arge **L**anguage **M**odels or **LLMs** (**ChatGPT**, **Google Gemini**, **Mistral**, etc.) with Llama Index.
 
+![alt text](assets/demo_qa.gif)
+
 Language models have the capacity to generate content based on similar source, but suffers from **halluciation**, which means that they can generate **false** content in the QA task, so relying solely on their answer can put users at high stake while seeking for accurate information.
 
 Another use of LLMs is to retrieve similar text based on not only their *keywords* but their *meaning*, e.g. *word/sentence embedding* (**TL;DR** this is a Youtube video [(link)](https://youtu.be/5MaWmXwxFNQ) that explains the technique). This project aims to employ that technique to leverage LLMs in order to extract, resume, search information in various document datasources (PDFs, structured document folder, web, etc.).
@@ -145,14 +147,9 @@ The gradio app is accessible at https://127.0.0.1:7860 or https://localhost:7860
 
 # Evaluation
 
-----------------------
-**Under developement**
+- [ ] Implement an evaluation protocol based on paper:
 
-...
-
-...
-
-----------------------
+  * Hallucination-Free? Assessing the Reliability of Leading AI Legal Research Tools - (Stanford University & Yale University) [[pdf]](https://dho.stanford.edu/wp-content/uploads/Legal_RAG_Hallucinations.pdf)
 
 # Acknowledgement
 

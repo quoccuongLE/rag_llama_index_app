@@ -45,4 +45,6 @@ def build_embed_model(config: EmbedModelSetting):
 
 @factory.register_builder("ollama")
 def build_ollama_model(config: EmbedModelSetting):
-    return OllamaEmbedding(model_name=config.name)
+    return OllamaEmbedding(
+        model_name=config.name, base_url=f"http://{config.host}:{config.port}"
+    )
