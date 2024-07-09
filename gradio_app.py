@@ -3,6 +3,7 @@ from pathlib import Path
 import shutil
 import sys
 import time
+import yaml
 import gradio as gr
 from dataclasses import dataclass
 from typing import ClassVar, Dict, List, Tuple
@@ -278,6 +279,12 @@ class LocalChatbotUI:
     def _update_file_list(self):
         return gr.Dropdown(choices=self._rag_engine._files_registry)
 
+    def _retrieve_rag_cfg(self) -> dict:
+        return gr.update(value=yaml.dump(self._rag_engine.config))
+
+    def _set_rag_cfg(self, config: str):
+        self._rag_engine.config = yaml.safe_load(config)
+
     def build(self):
         with gr.Blocks(theme="ParityError/Interstellar") as demo:
             gr.Markdown("## QA semantic search powered by LLM")
@@ -415,6 +422,15 @@ class LocalChatbotUI:
                             max_lines=50,
                         )
                         sys_prompt_btn = gr.Button(value="Set System Prompt")
+                    with gr.Column(variant=self._variant):
+                        system_config = gr.Code(
+                            value=None,
+                            language="yaml",
+                            interactive=True,
+                            show_label=True,
+                        )
+                        sys_cfg_btn = gr.Button(value="Get Current System Config")
+                        apply_cfg_btn = gr.Button(value="Apply config")
 
             with gr.Tab("Output"):
                 with gr.Row(variant=self._variant):
@@ -491,7 +507,6 @@ class LocalChatbotUI:
 
             file_list.change(self._change_selected_file, inputs=[file_list])
 
-            sys_prompt_btn.click(self._change_system_prompt, inputs=[system_prompt])
             ui_btn.click(
                 self._show_hide_setting,
                 inputs=[sidebar_state],
@@ -505,6 +520,10 @@ class LocalChatbotUI:
             reset_doc_btn.click(
                 self._reset_document, outputs=[documents, upload_doc_btn, reset_doc_btn]
             )
+            # Setting tab
+            sys_prompt_btn.click(self._change_system_prompt, inputs=[system_prompt])
+            sys_cfg_btn.click(self._retrieve_rag_cfg, outputs=[system_config])
+            apply_cfg_btn.click(self._set_rag_cfg, inputs=[system_config])
             demo.load(self._welcome, outputs=[message, chatbot, status])
 
         return demo

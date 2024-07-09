@@ -1,5 +1,6 @@
 from llama_index.core.embeddings import BaseEmbedding
 from llama_index.embeddings.ollama import OllamaEmbedding
+from llama_index.embeddings.openai import OpenAIEmbedding
 from sentence_transformers import SentenceTransformer
 
 from doc_search.embedding import factory
@@ -48,3 +49,8 @@ def build_ollama_model(config: EmbedModelSetting):
     return OllamaEmbedding(
         model_name=config.name, base_url=f"http://{config.host}:{config.port}"
     )
+
+
+@factory.register_builder("openai")
+def build_ollama_model(config: EmbedModelSetting):
+    return OpenAIEmbedding(model=config.name)
