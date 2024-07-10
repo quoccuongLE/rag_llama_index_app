@@ -43,7 +43,7 @@ def build_simple_file_reader(file: Path, config: LoaderConfig):
 @factory.register_builder("llama_parse")
 def build_llama_parse_reader(file: Path, config: LoaderConfig):
     assert file.is_file(), f"This path {str(file)} is not a file"
-    return LlamaParse(result_type=config.result_type)
+    return LlamaParse(result_type=config.result_type, parsing_instruction=config.parsing_instruction)
 
 
 @factory.register_builder("multiple_files")

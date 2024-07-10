@@ -1,32 +1,52 @@
-index_store: ./data/doc_search/index_store
-file_storage: ./data/doc_search/docs
-llm:
-  model: llama3
-  request_timeout: 120.0
 embed_model:
-  type: ollama
-  name: mxbai-embed-large
+  host: localhost
+  instruct_prompt: ''
   max_seq_length: 8192
+  name: mxbai-embed-large
+  port: 11434
   request_timeout: 120.0
-  instruct_prompt: ""
-query_engine:
-  type: QA
-  similarity_top_k: 12
-  hierarchical: false
-  chat_token_limit: 12000
-  synthesizer:
-    topk: 5
-    sample_length: 300
+  type: ollama
+file_storage: ./data/doc_search/docs
+index_store: ./data/doc_search/index_store
+llm:
+  host: localhost
+  model: llama3
+  port: 11434
+  request_timeout: 120.0
+  system_prompt: This is a chat between a user and an artificial intelligence assistant.
+    The assistant gives helpful, detailed, and polite answers to the user's questions
+    based on the context. The assistant should also indicate when the answer cannot
+    be found in the context.
+  temperature: 0.5
+  type: ollama
 parser_config:
-  name: llama_parser # simple_parser  llama_parser
-  loader_name: pdf_markdown_reader # single_file  llama_parse  pdf_markdown_reader
-  loader_config:
-    show_progress: true
   index_store_name: vector_store_index
-  result_type: markdown
-  instruct_prompt: ""
-  node_parser_name: markdown_element_node_parser # markdown_node_parser  markdown_element_node_parser
+  instruct_prompt: "This document is an insurance policy.
+When a benefits/coverage/exlusion is describe in the document ammend to it add a text in the follwing benefits string format (where coverage could be an exclusion). For {nameofrisk} and in this condition {whenDoesThecoverageApply} the coverage is {coverageDescription}. If the document contain a benefits TABLE that describe coverage amounts, do not ouput it as a table, but instead as a list of benefits string."
   llm:
+    host: localhost
     model: llama3
+    port: 11434
     request_timeout: 120.0
+    system_prompt: ""
+    temperature: 0.0
+    type: ollama
+  loader_config:
+    file_extractor: []
+    recursive: true
+    show_progress: false
+    result_type: markdown
+  loader_name: llama_parse # pdf_markdown_reader
+  name: llama_parser
+  node_parser_name: markdown_element_node_parser
   num_workers: 8
+query_engine:
+  chat_token_limit: 12000
+  citation_chunk_size: 512
+  hierarchical: false
+  prefix_messages: ""
+  similarity_top_k: 12
+  synthesizer:
+    sample_length: 300
+    topk: 5
+  type: QA

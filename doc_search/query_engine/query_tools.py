@@ -9,8 +9,7 @@ from llama_index.core.base.response.schema import (
 )
 from llama_index.core.chat_engine import SimpleChatEngine, ContextChatEngine
 from llama_index.core.memory import ChatMemoryBuffer
-from llama_index.core.prompts import PromptTemplate
-from llama_index.core.query_engine import CitationQueryEngine
+from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.core.response_synthesizers import Refine
 from llama_index.core.retrievers import AutoMergingRetriever
 from llama_index.core.schema import NodeWithScore, QueryBundle, QueryType
@@ -74,15 +73,16 @@ class RawBaseSynthesizer(Refine):
         )
         text = ""
         for i, node in enumerate(source_nodes[: min(self._topk, len(source_nodes))]):
-            extract = node.text[: self._sample_length]
+            if "original_text" in node.metadata.keys():
+                extract = node.metadata["original_text"][: self._sample_length]
+            else:
+                extract = node.text[: self._sample_length]
             page_number = node.metadata.get("page_label", "n/a")
             text += "".join(
                 [
-                    f"({i}) - Page {page_number} \nText:\t",
+                    f"({i}) - Page {page_number} - Score={node.score:.3f}\n\nText:\t",
                     extract,
-                    "...",
-                    f"\nScore:\t {node.score:.3f}\n"
-                    "\n_______________________________________________\n",
+                    "\n\n=================================================\n\n",
                 ]
             )
         return Response(
@@ -98,13 +98,13 @@ def build_semantic_search_engine(
     config: EngineConfig,
     postprocessors: Optional[list] = None,
     **kwargs,
-) -> CitationQueryEngine:
-    return CitationQueryEngine.from_args(
-        index,
-        response_synthesizer=RawBaseSynthesizer(**config.synthesizer.model_dump()),
-        citation_chunk_size=config.citation_chunk_size,
-        citation_qa_template=PromptTemplate(qa_template),
-        similarity_top_k=config.similarity_top_k,
+) -> RetrieverQueryEngine:
+    return RetrieverQueryEngine.from_args(
+        retriever=index.as_retriever(similarity_top_k=config.similarity_top_k),
+        llm=Settings.llm,
+        response_synthesizer=RawBaseSynthesizer(
+            topk=config.synthesizer.topk, sample_length=config.synthesizer.sample_length
+        ),
         node_postprocessors=postprocessors or [],
     )
 
@@ -129,6 +129,7 @@ def build_qa_query_engine(
         prefix_messages=[ChatMessage.from_str(content=config.prefix_messages, role="system")],
         retriever=retriever,
         llm=Settings.llm,
+        context_template=config.context_template or qa_template,
         memory=ChatMemoryBuffer(token_limit=config.chat_token_limit),
         node_postprocessors=postprocessors or [],
     )

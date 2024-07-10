@@ -293,7 +293,7 @@ class DocRetrievalAugmentedGen:
             return Response(
                 response="Please select a file you want to query information! Or you want to switch to chat mode ?"
             )
-        if isinstance(self._query_engine, CitationQueryEngine):
+        if self._chat_mode == ChatMode.SEMANTIC_SEARCH:
             return self._query_engine.query(message)
         else:
             history = self.get_history(chatbot)
