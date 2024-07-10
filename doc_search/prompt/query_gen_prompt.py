@@ -2,7 +2,7 @@ from llama_index.core import PromptTemplate
 
 
 def get_query_gen_prompt(language: str):
-    if language == "vi":
+    if language == "vie":
         return query_gen_prompt_vi
     return query_gen_prompt_en
 

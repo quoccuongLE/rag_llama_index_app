@@ -125,6 +125,9 @@ parser_config:
     request_timeout: 120.0
   num_workers: 8
 ```
+You can access to Setting **Tab** to change the system config interatively. Click "Get Current System Config", change config in the text box, then click on "Apply config"
+
+![alt text](assets/demo_setting_update.gif)
 
 </details>
 

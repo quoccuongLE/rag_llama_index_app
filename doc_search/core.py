@@ -23,6 +23,8 @@ from .query_engine import factory as qengine_factory
 from .query_engine.query_tools import ChatMode
 from .settings import RAGSetting
 
+_OPENAI_MODELS = ["openai/gpt-4", "openai/gpt-4o", "openai/gpt-3.5-turbo-16k"]
+
 _EMBED_MODELS = [
     "ollama/mxbai-embed-large",  # (Recommended for short context (512 max) d = 1024)
     "ollama/nomic-embed-text",  # (Recommended for long context (8192 max) d = 768)
@@ -31,6 +33,9 @@ _EMBED_MODELS = [
     "huggingface/Alibaba-NLP/gte-Qwen2-1.5B-instruct",
     "huggingface/intfloat/multilingual-e5-large-instruct",  # instruct added into query
     "huggingface/intfloat/multilingual-e5-small",
+    "openai/text-embedding-ada-002",
+    "openai/text-embedding-3-large",
+    "openai/text-embedding-3-small",
 ]
 
 
@@ -73,7 +78,7 @@ class DocRetrievalAugmentedGen:
         ollama_list = [
             "ollama/" + x["name"].replace(":latest", "") for x in info_dict["models"]
         ]
-        return [x for x in ollama_list if x not in _EMBED_MODELS]
+        return [x for x in ollama_list if x not in _EMBED_MODELS] + _OPENAI_MODELS
 
     @property
     def default_model(self) -> str:
@@ -171,6 +176,23 @@ class DocRetrievalAugmentedGen:
     @property
     def system_prompt(self):
         return self._system_prompt
+
+    @property
+    def config(self) -> dict[str, any]:
+        return self._setting.model_dump()
+
+    @config.setter
+    def config(self, config_dict: dict):
+        self._setting.override(config_dict)
+        self._model_name: str = self._setting.llm.model or "llama3"
+        self._query_engine = None
+        self._parser = parser_factory.build(
+            config=self._setting.parser_config, data_runtime=self._setting.index_store
+        )
+
+        Settings.llm = llm_factory.build(config=self._setting.llm)
+        Settings.embed_model = embedding_factory.build(self._setting.embed_model)
+        self._load_index_stores()
 
     def check_nodes_exist(self):
         # return len(self._query_engine_tools.values()) > 0

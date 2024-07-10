@@ -1,6 +1,6 @@
 
 def get_single_select_prompt(language: str):
-    if language == "vi":
+    if language == "vie":
         return single_select_prompt_vi
     return single_select_prompt_en
 
