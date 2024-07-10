@@ -1,11 +1,11 @@
 def get_context_prompt(language: str) -> str:
-    if language == "vi":
+    if language == "vie":
         return CONTEXT_PROMPT_VI
     return CONTEXT_PROMPT_EN
 
 
 def get_system_prompt(language: str, is_rag_prompt: bool = True) -> str:
-    if language == "vi":
+    if language == "vie":
         return SYSTEM_PROMPT_RAG_VI if is_rag_prompt else SYSTEM_PROMPT_VI
     return SYSTEM_PROMPT_RAG_EN if is_rag_prompt else SYSTEM_PROMPT_EN
 

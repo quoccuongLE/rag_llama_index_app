@@ -135,8 +135,8 @@ class LocalChatbotUI:
     def _get_respone(
         self,
         chat_mode: str,
-        message: Dict[str, str],
-        chatbot: List,
+        message: dict[str, str],
+        chatbot: list[list[str, str]],
         progress=gr.Progress(track_tqdm=False),
     ):
         if message["text"] in [None, ""]:
@@ -164,7 +164,7 @@ class LocalChatbotUI:
         if model not in [None, ""]:
             self._rag_engine.embed_model = model
             self._rag_engine.reset_engine()
-            gr.Info(f"Change **embed** model to {model}!")
+            gr.Info(f"Change embed model to {model}!")
         return DefaultElement.DEFAULT_STATUS
 
     def _upload_document(self, document: List[str], list_files: Tuple[List[str], dict]):
@@ -225,17 +225,46 @@ class LocalChatbotUI:
 
     def _change_chat_mode(self, chat_mode: str, topk: int, nb_extract_char: int):
         chat_config = dict(type=chat_mode)
-        visible = chat_mode == "semantic search"
-        if visible:
-            chat_config.update(
-                dict(synthesizer=dict(topk=topk, sample_length=nb_extract_char))
-            )
         self._rag_engine.set_chat_mode(chat_mode=chat_mode, chat_config=chat_config)
         gr.Info(f"Change chat mode to {chat_mode}")
+        (
+            _topk,
+            _nb_extract_char,
+            _search_update_btn,
+            _language,
+            _embed_model,
+            _file_list,
+            _document,
+        ) = (False, False, False, False, False, False, False)
+        match chat_mode:
+            case "semantic search":
+                chat_config.update(
+                    dict(synthesizer=dict(topk=topk, sample_length=nb_extract_char))
+                )
+                _topk = True
+                _nb_extract_char = True
+                _search_update_btn = True
+                _embed_model = True
+                _file_list = True
+                _document = True
+
+            case "chat":
+                _language = True
+
+            case _:
+                _language = True
+                _embed_model = True
+                _file_list = True
+                _document = True
+
         return (
-            gr.update(visible=visible),
-            gr.update(visible=visible),
-            gr.update(visible=visible),
+            gr.update(visible=_topk),
+            gr.update(visible=_nb_extract_char),
+            gr.update(visible=_search_update_btn),
+            gr.update(visible=_language),
+            gr.update(visible=_embed_model),
+            gr.update(visible=_file_list),
+            gr.update(visible=_document),
         )
 
     def _change_selected_file(self, filename: str):
@@ -284,6 +313,7 @@ class LocalChatbotUI:
 
     def _set_rag_cfg(self, config: str):
         self._rag_engine.config = yaml.safe_load(config)
+        gr.Info(f"Updated full configuration!")
 
     def build(self):
         with gr.Blocks(theme="ParityError/Interstellar") as demo:
@@ -300,8 +330,8 @@ class LocalChatbotUI:
                             )
                             language = gr.Dropdown(
                                 label="User Language",
-                                choices=["vi", "eng"],
-                                value="eng",
+                                choices=["vie - Tiếng Việt", "eng - English"],
+                                value="eng - English",
                                 interactive=True,
                                 visible=False,
                             )
@@ -319,14 +349,6 @@ class LocalChatbotUI:
                                 interactive=True,
                                 allow_custom_value=False,
                             )
-                            # with gr.Row():
-                            #     pull_btn = gr.Button(
-                            #         value="Pull Model", visible=False, min_width=50
-                            #     )
-                            #     cancel_btn = gr.Button(
-                            #         value="Cancel", visible=False, min_width=50
-                            #     )
-
                             file_list = gr.Dropdown(
                                 label="Choose file:",
                                 choices=list(self._rag_engine._files_registry),
@@ -429,7 +451,7 @@ class LocalChatbotUI:
                             interactive=True,
                             show_label=True,
                         )
-                        sys_cfg_btn = gr.Button(value="Get Current System Config")
+                        sys_cfg_btn = gr.Button(value="Get current system config")
                         apply_cfg_btn = gr.Button(value="Apply config")
 
             with gr.Tab("Output"):
@@ -446,31 +468,10 @@ class LocalChatbotUI:
                     )
 
             clear_btn.click(self._clear_chat, outputs=[message, chatbot, status])
-            # cancel_btn.click(
-            #     lambda: (gr.update(visible=False), gr.update(visible=False), None),
-            #     outputs=[pull_btn, cancel_btn, model],
-            # )
             undo_btn.click(self._undo_chat, inputs=[chatbot], outputs=[chatbot])
             reset_btn.click(
                 self._reset_chat, outputs=[message, chatbot, documents, status]
             )
-            # pull_btn.click(
-            #     lambda: (gr.update(visible=False), gr.update(visible=False)),
-            #     outputs=[pull_btn, cancel_btn],
-            # ).then(
-            #     self._pull_model,
-            #     inputs=[model],
-            #     outputs=[message, chatbot, status, model],
-            # ).then(
-            #     self._change_model, inputs=[model], outputs=[status]
-            # )
-            # message.submit(
-            #     self._upload_document, inputs=[documents, message], outputs=[documents]
-            # ).then(
-            #     self._get_respone,
-            #     inputs=[chat_mode, message, chatbot],
-            #     outputs=[message, chatbot, status],
-            # )
             message.submit(
                 self._get_respone,
                 inputs=[chat_mode, message, chatbot],
@@ -479,7 +480,15 @@ class LocalChatbotUI:
             chat_mode.change(
                 self._change_chat_mode,
                 inputs=[chat_mode, top_k, nb_extract_char],
-                outputs=[top_k, nb_extract_char, search_update_btn],
+                outputs=[
+                    top_k,
+                    nb_extract_char,
+                    search_update_btn,
+                    language,
+                    embed_model,
+                    file_list,
+                    documents,
+                ],
             ).then(self._rag_engine.reset_conversation).then(
                 self._clear_chat, outputs=[message, chatbot, status]
             )
