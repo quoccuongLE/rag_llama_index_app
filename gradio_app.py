@@ -219,7 +219,6 @@ class LocalChatbotUI:
         gr.Info("System prompt updated!")
 
     def _change_language(self, language: str):
-        self._rag_engine.language = language
         self._rag_engine.set_chat_mode(language=language)
         gr.Info(f"Change language to {language}")
 

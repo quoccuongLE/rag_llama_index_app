@@ -134,11 +134,6 @@ def build_qa_query_engine(
         node_postprocessors=postprocessors or [],
     )
 
-    # return RetrieverQueryEngine.from_args(
-    #     retriever,
-    #     node_postprocessors=postprocessors or [],
-    # )
-
 
 @factory.register_builder("chat")
 def build_chat_query_engine(
