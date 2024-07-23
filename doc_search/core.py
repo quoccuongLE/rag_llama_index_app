@@ -171,7 +171,8 @@ class DocRetrievalAugmentedGen:
 
     @language.setter
     def language(self, language: str):
-        self._language = language
+        lang_code, lang_name = tuple(language.split(" - ", 1))
+        self._language = lang_code
 
     @property
     def system_prompt(self):
@@ -186,12 +187,15 @@ class DocRetrievalAugmentedGen:
         self._setting.override(config_dict)
         self._model_name: str = self._setting.llm.model or "llama3"
         self._query_engine = None
+        self._system_prompt = self._setting.llm.system_prompt
         self._parser = parser_factory.build(
             config=self._setting.parser_config, data_runtime=self._setting.index_store
         )
 
-        Settings.llm = llm_factory.build(config=self._setting.llm)
-        Settings.embed_model = embedding_factory.build(self._setting.embed_model)
+        Settings.llm = llm_factory.build(
+            config=self._setting.llm, prompt=self._setting.llm.system_prompt
+        )
+        Settings.embed_model = embedding_factory.build(config=self._setting.embed_model)
         self._load_index_stores()
 
     def check_nodes_exist(self):
@@ -205,7 +209,7 @@ class DocRetrievalAugmentedGen:
         )
 
     def set_model(self):
-        Settings.llm = llm_factory.build(config=self._setting.llm)
+        Settings.llm = llm_factory.build(config=self._setting.llm, prompt=self._system_prompt)
 
     def reset_engine(self):
         if self.embed_model not in self._doc_index_stores.keys():
@@ -267,7 +271,7 @@ class DocRetrievalAugmentedGen:
         language: Optional[str] = None,
     ):
         if language:
-            self.language = self._language or language
+            self.language = language or self._language
             self.system_prompt = system_prompt
         if chat_mode:
             self._chat_mode = ChatMode(chat_mode)
@@ -293,7 +297,7 @@ class DocRetrievalAugmentedGen:
             return Response(
                 response="Please select a file you want to query information! Or you want to switch to chat mode ?"
             )
-        if isinstance(self._query_engine, CitationQueryEngine):
+        if self._chat_mode == ChatMode.SEMANTIC_SEARCH:
             return self._query_engine.query(message)
         else:
             history = self.get_history(chatbot)

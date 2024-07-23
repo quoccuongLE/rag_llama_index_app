@@ -97,6 +97,5 @@ qa_template = """
     \n------\n
     {context_str}
     \n------\n
-    Query: {query_str}\n
     Answer:
 """

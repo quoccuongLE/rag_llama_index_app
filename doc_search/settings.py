@@ -71,6 +71,7 @@ class EngineConfig(ConfigParams):
         default="You are given a context, please answer the question solely on that context."
     )
     hierarchical: bool = Field(default=False)
+    context_template: str = Field(default=None)
 
 # TODO: Refacto EngineConfig
 class SimpleChatEngineConfig(EngineConfig):
@@ -95,6 +96,9 @@ class LoaderConfig(ConfigParams):
     file_extractor: list[str] = Field(default_factory=lambda: [])
     recursive: bool = Field(default=True)
     show_progress: bool = Field(default=False)
+    result_type: str = Field(default="markdown")
+    parsing_instruction: str = Field(default=None)
+    text_summarize: bool = Field(default=False)
 
 
 class ParserConfig(ConfigParams):
@@ -106,7 +110,6 @@ class ParserConfig(ConfigParams):
 
     # Indexing config
     index_store_name: str = Field(default="vector_store_index")
-    result_type: str = Field(default="markdown")
     instruct_prompt: str = Field(default="")
 
     # node parser config

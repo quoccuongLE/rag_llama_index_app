@@ -219,14 +219,11 @@ class LocalChatbotUI:
         gr.Info("System prompt updated!")
 
     def _change_language(self, language: str):
-        self._rag_engine.language = language
         self._rag_engine.set_chat_mode(language=language)
         gr.Info(f"Change language to {language}")
 
     def _change_chat_mode(self, chat_mode: str, topk: int, nb_extract_char: int):
         chat_config = dict(type=chat_mode)
-        self._rag_engine.set_chat_mode(chat_mode=chat_mode, chat_config=chat_config)
-        gr.Info(f"Change chat mode to {chat_mode}")
         (
             _topk,
             _nb_extract_char,
@@ -251,11 +248,14 @@ class LocalChatbotUI:
             case "chat":
                 _language = True
 
-            case _:
+            case "QA":
                 _language = True
                 _embed_model = True
                 _file_list = True
                 _document = True
+
+        self._rag_engine.set_chat_mode(chat_mode=chat_mode, chat_config=chat_config)
+        gr.Info(f"Change chat mode to {chat_mode}")
 
         return (
             gr.update(visible=_topk),
