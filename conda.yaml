@@ -27,3 +27,15 @@ dependencies:
     - ollama
     - flash_attn
     - pymupdf4llm
+    - marker-pdf --no-deps
+    - pydantic-settings --no-deps
+    - pydantic --no-deps
+    - ftfy --no-deps
+    - texify --no-deps
+    - tabulate --no-deps
+    - rapidfuzz --no-deps
+    - surya-ocr --no-deps
+    - filetype --no-deps
+    - regex --no-deps
+    - pdftext --no-deps
+    - grpcio --no-deps
