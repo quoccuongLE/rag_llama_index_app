@@ -1,3 +1,4 @@
+import warnings
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
@@ -6,39 +7,33 @@ try:
 except ImportError:
     import fitz
 
+import multiprocessing
+from functools import reduce
+from itertools import repeat
+
 from fitz import Document as FitzDocument
+from llama_index.core import PromptTemplate, Settings
 from llama_index.core.readers.base import BaseReader
 from llama_index.core.schema import Document as LlamaIndexDocument
-from pymupdf4llm import IdentifyHeaders, to_markdown
+from pymupdf4llm import IdentifyHeaders
+from pymupdf4llm import to_markdown as to_markdown_legacy
 from tqdm import tqdm
 
 from doc_search.data_processing.data_loader import factory
 from doc_search.settings import LoaderConfig
-from llama_index.core import PromptTemplate, Settings
 
-# text_summary_template = PromptTemplate(
-#     "Context information is below.\n"
-#     "---------------------\n"
-#     "{context_str}\n"
-#     "---------------------\n"
-#     "Given the context information and not prior knowledge, "
-#     "answer the question: {query_str}\n"
-# )
+from .pymupdf_utils import to_markdown
 
 text_summary_template = PromptTemplate(
     "Document is below.\n"
     "---------------------\n"
     "{document_str}\n"
     "---------------------\n"
-    "Summary the document following intruction below:\n"
+    "Summary the document following the intruction below:\n"
     "---------------------\n"
     "{instruct_str}\n"
     "---------------------\n"
 )
-
-
-_INSTRUCT_PROMPT = """This document is an insurance policy.
-When a benefits/coverage/exlusion is describe in the document ammend to it add a text in the follwing benefits string format (where coverage could be an exclusion). For {nameofrisk} and in this condition {whenDoesThecoverageApply} the coverage is {coverageDescription}. If the document contain a benefits TABLE that describe coverage amounts, do not ouput it as a table, but instead as a list of benefits string."""
 
 
 class PDFMarkdownReader(BaseReader):
@@ -108,10 +103,15 @@ class PDFMarkdownReader(BaseReader):
     # ---
 
     def _align_sentence_segments(self, text: str) -> str:
+        # Preserve \n\n
         text = text.replace("\n\n", "~~")
+        # Preserve **\n
         text = text.replace("**\n", "!!")
+        # Remove \n
         text = text.replace("\n", " ")
+        # Recover \n\n
         text = text.replace("~~", "\n\n")
+        # Recover **\n
         text = text.replace("!!", "**\n")
         return text
 
@@ -122,13 +122,62 @@ class PDFMarkdownReader(BaseReader):
         file_path: str,
         page_number: int,
         hdr_info: IdentifyHeaders,
-    ):
+        page_width: int = 612,
+        page_height: int | None = None,
+    ) -> LlamaIndexDocument:
         """Processes a single page of a PDF document."""
         extra_info = self._process_doc_meta(doc, file_path, page_number, extra_info)
 
         if self.meta_filter:
             extra_info = self.meta_filter(extra_info)
 
+        # for reflowable documents allow making 1 page for the whole document
+        if doc.is_reflowable:
+            if hasattr(page_height, "__float__"):
+                # accept user page dimensions
+                doc.layout(width=page_width, height=page_height)
+            else:
+                # no page height limit given: make 1 page for whole document
+                doc.layout(width=page_width, height=792)
+                page_count = doc.page_count
+                height = 792 * page_count  # height that covers full document
+                doc.layout(width=page_width, height=height)
+
+        if pages is None:  # use all pages if no selection given
+            pages = list(range(doc.page_count))
+
+        if hasattr(margins, "__float__"):
+            margins = [margins] * 4
+        if len(margins) == 2:
+            margins = (0, margins[0], 0, margins[1])
+        if len(margins) != 4:
+            raise ValueError("margins must be a float or a sequence of 2 or 4 floats")
+        elif not all([hasattr(m, "__float__") for m in margins]):
+            raise ValueError("margin values must be floats")
+
+        pages = [x for x in doc]
+        doc_metadata = doc.metadata.copy()
+        doc_metadata.update(dict(file_path=doc.name, page_count=doc.page_count))
+        # read the Table of Contents
+        table_of_contents = doc.get_toc()
+
+        if self.num_workers and self.num_workers > 1:
+            if self.num_workers > multiprocessing.cpu_count():
+                warnings.warn(
+                    "Specified num_workers exceed number of CPUs in the system. "
+                    "Setting `num_workers` down to the maximum CPU count."
+                )
+            with multiprocessing.get_context("spawn").Pool(self.num_workers) as p:
+                results = p.starmap(
+                    to_markdown,
+                    pages,
+                    repeat(doc_metadata),
+                    repeat(table_of_contents),
+                    repeat(hdr_info)
+                )
+                documents = reduce(lambda x, y: x + y, results)
+
+        # TODO: Here 
         text = to_markdown(
             doc, pages=[page_number], hdr_info=hdr_info, write_images=False
         )

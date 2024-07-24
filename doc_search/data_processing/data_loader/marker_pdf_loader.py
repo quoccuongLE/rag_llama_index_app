@@ -15,6 +15,7 @@ from tqdm import tqdm
 from doc_search.data_processing.data_loader import factory
 from doc_search.settings import LoaderConfig
 from llama_index.core import PromptTemplate, Settings
+from marker.convert import convert_single_pdf
 
 
 text_summary_template = PromptTemplate(
@@ -32,7 +33,6 @@ text_summary_template = PromptTemplate(
 class MarkerPDFReader(BaseReader):
     """Read PDF files using Marker PDF library."""
 
-    meta_filter: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None
     show_progress: bool = False
     text_summarize: bool = False
     parsing_instruction: str | None = None
@@ -42,18 +42,16 @@ class MarkerPDFReader(BaseReader):
         text_summarize: bool = False,
         parsing_instruction: str | None = None,
         show_progress: bool = False,
-        meta_filter: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
     ):
         self.text_summarize = text_summarize
         self.parsing_instruction = parsing_instruction
-        self.meta_filter = meta_filter
         self.show_progress = show_progress
 
     def load_data(
         self,
-        file_path: Union[Path, str],
-        extra_info: Optional[Dict] = None,
-        **load_kwargs: Any,
+        file_path: Path | str,
+        extra_info: dict | None = None,
+        **load_kwargs: any,
     ) -> List[LlamaIndexDocument]:
         """Loads list of documents from PDF file and also accepts extra information in dict format.
 
@@ -75,33 +73,23 @@ class MarkerPDFReader(BaseReader):
             raise TypeError("extra_info must be a dictionary.")
 
         # extract text header information
-        hdr_info = IdentifyHeaders(file_path)
+        # hdr_info = IdentifyHeaders(file_path)
 
-        doc: FitzDocument = fitz.open(file_path)
-        docs = []
-        if self.show_progress:
-            pages_to_process = tqdm(doc, desc="Loading files", unit="file")
-        else:
-            pages_to_process = doc
+        # doc: FitzDocument = fitz.open(file_path)
+        # docs = []
+        # if self.show_progress:
+        #     pages_to_process = tqdm(doc, desc="Loading files", unit="file")
+        # else:
+        #     pages_to_process = doc
 
-        for page in pages_to_process:
-            docs.append(
-                self._process_doc_page(
-                    doc, extra_info, file_path, page.number, hdr_info
-                )
-            )
-        return docs
-
-    # Helpers
-    # ---
-
-    def _align_sentence_segments(self, text: str) -> str:
-        text = text.replace("\n\n", "~~")
-        text = text.replace("**\n", "!!")
-        text = text.replace("\n", " ")
-        text = text.replace("~~", "\n\n")
-        text = text.replace("!!", "**\n")
-        return text
+        # for page in pages_to_process:
+        #     docs.append(
+        #         self._process_doc_page(
+        #             doc, extra_info, file_path, page.number, hdr_info
+        #         )
+        #     )
+        # return docs
+        
 
     def _process_doc_page(
         self,
