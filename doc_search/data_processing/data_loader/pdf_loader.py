@@ -20,7 +20,7 @@ from tqdm import tqdm
 from doc_search.data_processing.data_loader import factory
 from doc_search.settings import LoaderConfig
 
-from .pymupdf_utils import to_markdown
+from .utils.pymupdf import to_markdown
 
 text_summary_template = PromptTemplate(
     "Document is below.\n"
