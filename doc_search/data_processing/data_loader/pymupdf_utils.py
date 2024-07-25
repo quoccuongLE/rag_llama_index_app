@@ -5,6 +5,7 @@ pymupdf4llm/helpers/pymupdf_rag.py to be suitable for multi-processing
 
 import os
 import string
+from typing import Callable
 
 try:
     import pymupdf as fitz  # available with v1.24.3
@@ -33,15 +34,17 @@ GRAPHICS_TEXT = "\n![%s](%s)\n"
 
 
 def to_markdown(
-    page: Page | None = None,
-    doc_metadata: dict | None = None,
-    table_of_contents: list | None = None,
-    hdr_info: callable | None = None,
+    doc,
+    pages: list | None = None,
+    hdr_info: Callable | str | None = None,
     write_images: bool = False,
+    page_chunks: bool = False,
     margins: tuple[int] = (0, 50, 0, 50),
     dpi: int = 150,
+    page_width: int = 612,
+    page_height: int | None = None,
     table_strategy: str = "lines_strict",
-    graphics_limit: int | None = None,
+    graphics_limit: int = None,
 ) -> str:
     """Process the document and return the text of the selected pages.
 
@@ -62,32 +65,26 @@ def to_markdown(
 
     DPI = dpi
     GRAPHICS_LIMIT = graphics_limit
-    # if not isinstance(doc, fitz.Document):
-    #     doc = fitz.open(doc)
+    if not isinstance(doc, fitz.Document):
+        doc = fitz.open(doc)
 
-    # # for reflowable documents allow making 1 page for the whole document
-    # if doc.is_reflowable:
-    #     if hasattr(page_height, "__float__"):
-    #         # accept user page dimensions
-    #         doc.layout(width=page_width, height=page_height)
-    #     else:
-    #         # no page height limit given: make 1 page for whole document
-    #         doc.layout(width=page_width, height=792)
-    #         page_count = doc.page_count
-    #         height = 792 * page_count  # height that covers full document
-    #         doc.layout(width=page_width, height=height)
+    if isinstance(hdr_info, str):
+        hdr_info = IdentifyHeaders(hdr_info)
 
-    # if pages is None:  # use all pages if no selection given
-    #     pages = list(range(doc.page_count))
+    # for reflowable documents allow making 1 page for the whole document
+    if doc.is_reflowable:
+        if hasattr(page_height, "__float__"):
+            # accept user page dimensions
+            doc.layout(width=page_width, height=page_height)
+        else:
+            # no page height limit given: make 1 page for whole document
+            doc.layout(width=page_width, height=792)
+            page_count = doc.page_count
+            height = 792 * page_count  # height that covers full document
+            doc.layout(width=page_width, height=height)
 
-    # if hasattr(margins, "__float__"):
-    #     margins = [margins] * 4
-    # if len(margins) == 2:
-    #     margins = (0, margins[0], 0, margins[1])
-    # if len(margins) != 4:
-    #     raise ValueError("margins must be a float or a sequence of 2 or 4 floats")
-    # elif not all([hasattr(m, "__float__") for m in margins]):
-    #     raise ValueError("margin values must be floats")
+    if pages is None:  # use all pages if no selection given
+        pages = list(range(doc.page_count))
 
     # If "hdr_info" is not an object having method "get_header_id", scan the
     # document and use font sizes as header level indicators.
@@ -95,11 +92,6 @@ def to_markdown(
         get_header_id = hdr_info
     elif hasattr(hdr_info, "get_header_id") and callable(hdr_info.get_header_id):
         get_header_id = hdr_info.get_header_id
-    else:
-        raise NotImplementedError
-    # else:
-    #     hdr_info = IdentifyHeaders(doc)
-    #     get_header_id = hdr_info.get_header_id
 
     def resolve_links(links, span):
         """Accept a span and return a markdown link string.
@@ -361,7 +353,7 @@ def to_markdown(
         meta["page"] = pno + 1
         return meta
 
-    def get_page_output(page, margins, textflags):
+    def get_page_output(doc, pno, margins, textflags):
         """Process one page.
 
         Args:
@@ -373,7 +365,7 @@ def to_markdown(
             Markdown string of page content and image, table and vector
             graphics information.
         """
-        # page = doc[pno]
+        page = doc[pno]
         md_string = ""
         if GRAPHICS_LIMIT is not None:
             test_paths = page.get_cdrawings()
@@ -513,28 +505,34 @@ def to_markdown(
             md_string = md_string[1:]
         return md_string, images, tables, graphics
 
+    if page_chunks is False:
+        document_output = ""
+    else:
+        document_output = []
 
-    document_output = []
-
+    # read the Table of Contents
+    toc = doc.get_toc()
     textflags = fitz.TEXT_MEDIABOX_CLIP
+    for pno in pages:
+        page_output, images, tables, graphics = get_page_output(
+            doc, pno, margins, textflags
+        )
+        if page_chunks is False:
+            document_output += page_output
+        else:
+            # build subet of TOC for this page
+            page_tocs = [t for t in toc if t[-1] == pno + 1]
 
-    page_output, images, tables, graphics = get_page_output(
-        page, margins, textflags
-    )
+            metadata = get_metadata(doc, pno)
+            document_output.append(
+                {
+                    "metadata": metadata,
+                    "toc_items": page_tocs,
+                    "tables": tables,
+                    "images": images,
+                    "graphics": graphics,
+                    "text": page_output,
+                }
+            )
 
-    # build subet of TOC for this page
-    page_tocs = [t for t in table_of_contents if t[-1] == page.number + 1]
-
-    doc_metadata.update(dict(page=page.number))
-    document_output.append(
-        {
-            "metadata": doc_metadata,
-            "toc_items": page_tocs,
-            "tables": tables,
-            "images": images,
-            "graphics": graphics,
-            "text": page_output,
-        }
-    )
-
-    return document_output
+    return [document_output] if not page_chunks else document_output
