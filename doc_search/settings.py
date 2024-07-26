@@ -100,6 +100,13 @@ class LoaderConfig(ConfigParams):
     parsing_instruction: str = Field(default=None)
     text_summarize: bool = Field(default=False)
 
+    # MarkerPDFReader
+    max_pages: int = Field(default=None)
+    start_page: int = Field(default=None)
+    langs: list[str] = Field(default=None)
+    batch_multiplier: int = Field(default=2)
+    page_merge: bool = Field(default=False)
+
 
 class ParserConfig(ConfigParams):
     name: str = Field(default="simple_parser")

@@ -1,3 +1,4 @@
+import warnings
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
@@ -6,39 +7,35 @@ try:
 except ImportError:
     import fitz
 
+import multiprocessing
+from itertools import repeat
+
 from fitz import Document as FitzDocument
+from llama_index.core import PromptTemplate, Settings
 from llama_index.core.readers.base import BaseReader
 from llama_index.core.schema import Document as LlamaIndexDocument
-from pymupdf4llm import IdentifyHeaders, to_markdown
+from pymupdf4llm import IdentifyHeaders
 from tqdm import tqdm
 
 from doc_search.data_processing.data_loader import factory
 from doc_search.settings import LoaderConfig
-from llama_index.core import PromptTemplate, Settings
 
-# text_summary_template = PromptTemplate(
-#     "Context information is below.\n"
-#     "---------------------\n"
-#     "{context_str}\n"
-#     "---------------------\n"
-#     "Given the context information and not prior knowledge, "
-#     "answer the question: {query_str}\n"
-# )
+from .utils.pymupdf import to_markdown
 
 text_summary_template = PromptTemplate(
     "Document is below.\n"
     "---------------------\n"
     "{document_str}\n"
     "---------------------\n"
-    "Summary the document following intruction below:\n"
+    "Summary the document following the intruction below:\n"
     "---------------------\n"
     "{instruct_str}\n"
     "---------------------\n"
 )
 
 
-_INSTRUCT_PROMPT = """This document is an insurance policy.
-When a benefits/coverage/exlusion is describe in the document ammend to it add a text in the follwing benefits string format (where coverage could be an exclusion). For {nameofrisk} and in this condition {whenDoesThecoverageApply} the coverage is {coverageDescription}. If the document contain a benefits TABLE that describe coverage amounts, do not ouput it as a table, but instead as a list of benefits string."""
+def to_markdown_star(args):
+    return to_markdown(*args)
 
 
 class PDFMarkdownReader(BaseReader):
@@ -48,6 +45,7 @@ class PDFMarkdownReader(BaseReader):
     show_progress: bool = False
     text_summarize: bool = False
     parsing_instruction: str | None = None
+    num_workers: int = 4
 
     def __init__(
         self,
@@ -55,6 +53,7 @@ class PDFMarkdownReader(BaseReader):
         parsing_instruction: str | None = None,
         show_progress: bool = False,
         meta_filter: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
+        **kwargs
     ):
         self.text_summarize = text_summarize
         self.parsing_instruction = parsing_instruction
@@ -63,9 +62,9 @@ class PDFMarkdownReader(BaseReader):
 
     def load_data(
         self,
-        file_path: Union[Path, str],
-        extra_info: Optional[Dict] = None,
-        **load_kwargs: Any,
+        file_path: Path | str,
+        extra_info: dict | None = None,
+        **kwargs: Any,
     ) -> List[LlamaIndexDocument]:
         """Loads list of documents from PDF file and also accepts extra information in dict format.
 
@@ -77,83 +76,85 @@ class PDFMarkdownReader(BaseReader):
         Returns:
             List[LlamaIndexDocument]: A list of LlamaIndexDocument objects.
         """
-        if not isinstance(file_path, str) and not isinstance(file_path, Path):
-            raise TypeError("file_path must be a string or Path.")
 
-        if not extra_info:
-            extra_info = {}
-
-        if extra_info and not isinstance(extra_info, dict):
-            raise TypeError("extra_info must be a dictionary.")
+        extra_info = extra_info or {}
 
         # extract text header information
-        hdr_info = IdentifyHeaders(file_path)
+        hdr_info = file_path
 
         doc: FitzDocument = fitz.open(file_path)
-        docs = []
-        if self.show_progress:
-            pages_to_process = tqdm(doc, desc="Loading files", unit="file")
-        else:
-            pages_to_process = doc
-
-        for page in pages_to_process:
-            docs.append(
-                self._process_doc_page(
-                    doc, extra_info, file_path, page.number, hdr_info
-                )
-            )
-        return docs
-
-    # Helpers
-    # ---
+        page_numbers = [[x] for x in range(doc.page_count)]
+        extra_info = self._process_doc_meta(doc, file_path, extra_info)
+        return self._process_doc_page(
+            doc=file_path,
+            extra_info=extra_info,
+            page_numbers=page_numbers,
+            hdr_info=hdr_info,
+        )
 
     def _align_sentence_segments(self, text: str) -> str:
+        # Preserve \n\n
         text = text.replace("\n\n", "~~")
+        # Preserve **\n
         text = text.replace("**\n", "!!")
+        # Remove \n
         text = text.replace("\n", " ")
+        # Recover \n\n
         text = text.replace("~~", "\n\n")
+        # Recover **\n
         text = text.replace("!!", "**\n")
         return text
 
     def _process_doc_page(
         self,
-        doc: FitzDocument,
+        doc: Path | str,
         extra_info: Dict[str, Any],
-        file_path: str,
-        page_number: int,
-        hdr_info: IdentifyHeaders,
-    ):
+        page_numbers: list[list[int]],
+        hdr_info: str | None = None,
+        show_progress: bool = True,
+    ) -> LlamaIndexDocument:
         """Processes a single page of a PDF document."""
-        extra_info = self._process_doc_meta(doc, file_path, page_number, extra_info)
+        extra_info["page_label"] = page_numbers[0][0] + 1
 
         if self.meta_filter:
             extra_info = self.meta_filter(extra_info)
 
-        text = to_markdown(
-            doc, pages=[page_number], hdr_info=hdr_info, write_images=False
-        )
-        text = self._align_sentence_segments(text)
-        if self.text_summarize:
-            llm = Settings.llm
-            prompt = text_summary_template.format(
-                document_str=text, instruct_str=self.parsing_instruction
-            )
-            summary = llm.complete(prompt)
-            extra_info['original_text'] = text
-            return LlamaIndexDocument(text=summary.text, extra_info=extra_info)
-        else:
-            return LlamaIndexDocument(text=text, extra_info=extra_info)
+        if self.num_workers and self.num_workers > 1:
+            if self.num_workers > multiprocessing.cpu_count():
+                warnings.warn(
+                    "Specified num_workers exceed number of CPUs in the system. "
+                    "Setting `num_workers` down to the maximum CPU count."
+                )
+
+            N = len(page_numbers)
+            input_args = zip(repeat(doc), page_numbers, repeat(hdr_info), repeat(False))
+            with multiprocessing.get_context("spawn").Pool(self.num_workers) as pool:
+                documents = list(tqdm(pool.imap(to_markdown_star, input_args), total=N))
+
+        index_documents = []
+        for text in documents:
+            text = self._align_sentence_segments(text)
+            if self.text_summarize:
+                llm = Settings.llm
+                prompt = text_summary_template.format(
+                    document_str=text, instruct_str=self.parsing_instruction
+                )
+                summary = llm.complete(prompt)
+                extra_info['original_text'] = text
+                index_documents.append(LlamaIndexDocument(text=summary.text, extra_info=extra_info))
+            else:
+                index_documents.append(LlamaIndexDocument(text=text, extra_info=extra_info))
+
+        return index_documents
 
     def _process_doc_meta(
         self,
         doc: FitzDocument,
         file_path: Union[Path, str],
-        page_number: int,
         extra_info: Optional[Dict] = None,
     ):
         """Processes metas of a PDF document."""
         extra_info.update(doc.metadata)
-        extra_info["page_label"] = page_number + 1
         extra_info["total_pages"] = len(doc)
         extra_info["file_path"] = str(file_path)
 
