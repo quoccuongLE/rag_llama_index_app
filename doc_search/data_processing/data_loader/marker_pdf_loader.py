@@ -11,7 +11,7 @@ from marker.settings import settings
 from pymupdf4llm import IdentifyHeaders, to_markdown
 from tqdm import tqdm
 
-from .utils.marker_pdf import convert_single_pdf
+from .utils.marker_pdf import convert_single_pdf_no_images
 from doc_search.data_processing.data_loader import factory
 from doc_search.settings import LoaderConfig
 
@@ -26,8 +26,6 @@ text_summary_template = PromptTemplate(
     "{instruct_str}\n"
     "---------------------\n"
 )
-
-_MARKER_MODEL_LIST = load_all_models()
 
 
 class MarkerPDFReader(BaseReader):
@@ -61,6 +59,7 @@ class MarkerPDFReader(BaseReader):
         self.langs = langs
         self.batch_multiplier = batch_multiplier
         self.page_merge = page_merge
+        self._model_list = load_all_models()
 
     def load_data(
         self,
@@ -78,9 +77,9 @@ class MarkerPDFReader(BaseReader):
         Returns:
             List[LlamaIndexDocument]: A list of LlamaIndexDocument objects.
         """
-        full_texts, out_meta = convert_single_pdf(
+        full_texts, out_meta = convert_single_pdf_no_images(
             fname=file_path,
-            model_lst=_MARKER_MODEL_LIST,
+            model_lst=self._model_list,
             max_pages=self.max_pages,
             langs=self.langs,
             batch_multiplier=self.batch_multiplier,
@@ -88,6 +87,7 @@ class MarkerPDFReader(BaseReader):
             page_merge=self.page_merge,
         )
         index_documents = []
+        extra_info = extra_info or {}
         for text in full_texts:
             _extra_info = copy.copy(extra_info)
             _extra_info.update(out_meta)

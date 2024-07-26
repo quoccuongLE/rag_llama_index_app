@@ -104,7 +104,7 @@ class LoaderConfig(ConfigParams):
     max_pages: int = Field(default=None)
     start_page: int = Field(default=None)
     langs: list[str] = Field(default=None)
-    batch_multiplier: int = Field(default=1)
+    batch_multiplier: int = Field(default=2)
     page_merge: bool = Field(default=False)
 
 

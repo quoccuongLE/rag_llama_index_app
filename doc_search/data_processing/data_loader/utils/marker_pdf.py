@@ -48,7 +48,7 @@ from typing import List, Dict, Tuple, Optional
 from marker.settings import settings
 
 
-def convert_single_pdf(
+def convert_single_pdf_no_images(
     fname: str,
     model_lst: List,
     max_pages: int = None,

@@ -8,14 +8,29 @@ dependencies:
   - python=3.10
   - pytorch::pytorch=2.2.2
   - pytorch::torchvision=0.17.2
-  - pytorch-cuda=12.1
+  - pytorch::pytorch-cuda=12.1
+  - conda-forge::huggingface_hub=0.24.1
+  - conda-forge::opencv
+  - conda-forge::python-dotenv
+  - conda-forge::scikit-learn
+  - conda-forge::pillow
+  - conda-forge::pydantic
+  - conda-forge::transformers
+  - conda-forge::tabulate
+  - conda-forge::ftfy
+  - conda-forge::texify
+  - conda-forge::rapidfuzz
+  - conda-forge::filetype
+  - conda-forge::regex
+  - conda-forge::pdftext
+  - conda-forge::grpcio
   - pip
   - pip:
     - fire
+    - git+https://github.com/quoccuongLE/surya.git --no-deps
     - llama-index==0.10.50
     - langchain
     - gradio
-    - transformers
     - sentence_transformers
     - InstructorEmbedding
     - spacy
@@ -27,15 +42,3 @@ dependencies:
     - ollama
     - flash_attn
     - pymupdf4llm
-    - marker-pdf --no-deps
-    - pydantic-settings --no-deps
-    - pydantic --no-deps
-    - ftfy --no-deps
-    - texify --no-deps
-    - tabulate --no-deps
-    - rapidfuzz --no-deps
-    - surya-ocr --no-deps
-    - filetype --no-deps
-    - regex --no-deps
-    - pdftext --no-deps
-    - grpcio --no-deps
