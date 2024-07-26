@@ -4,6 +4,8 @@ if [ -f lock.conda.yaml ]; then
     conda env create -f lock.conda.yaml --prefix $VENV_DIR
 else
     conda env create -f conda.yaml --prefix $VENV_DIR
+    $VENV_DIR/bin/python -m pip install git+https://github.com/quoccuongLE/surya.git --no-dependencies
+    $VENV_DIR/bin/python -m pip install marker-pdf --no-dependencies
 fi
 
 # python -m pip install fire \

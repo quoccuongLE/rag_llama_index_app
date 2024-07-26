@@ -24,21 +24,22 @@ dependencies:
   - conda-forge::regex
   - conda-forge::pdftext
   - conda-forge::grpcio
+  - conda-forge::langchain
+  - conda-forge::langchain-community
   - pip
   - pip:
     - fire
-    - git+https://github.com/quoccuongLE/surya.git --no-deps
     - llama-index==0.10.50
-    - langchain
-    - gradio
-    - sentence_transformers
+    - openai
     - InstructorEmbedding
-    - spacy
+    - git+https://github.com/FlagOpen/FlagEmbedding.git
     - llama-index-llms-ollama
     - llama-index-embeddings-ollama
     - llama-index-vector-stores-milvus
+    - sentence_transformers
     - sentencepiece
-    - git+https://github.com/FlagOpen/FlagEmbedding.git
     - ollama
     - flash_attn
+    - gradio
+    - spacy
     - pymupdf4llm
