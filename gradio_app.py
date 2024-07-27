@@ -11,6 +11,7 @@ from llama_index.core.chat_engine.types import StreamingAgentChatResponse
 
 from doc_search import DocRetrievalAugmentedGen
 from doc_search.logger import Logger
+from doc_search.translator import get_available_languages
 
 import fire
 
@@ -330,7 +331,8 @@ class LocalChatbotUI:
                             )
                             language = gr.Dropdown(
                                 label="User Language",
-                                choices=["vie - Tiếng Việt", "eng - English"],
+                                # choices=["vie - Tiếng Việt", "eng - English"],
+                                choices=get_available_languages(),
                                 value="eng - English",
                                 interactive=True,
                                 visible=False,

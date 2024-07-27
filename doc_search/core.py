@@ -22,6 +22,8 @@ from .prompt import get_system_prompt
 from .query_engine import factory as qengine_factory
 from .query_engine.query_tools import ChatMode
 from .settings import RAGSetting
+from .translator import NLLB, Language
+
 
 _OPENAI_MODELS = ["openai/gpt-4", "openai/gpt-4o", "openai/gpt-3.5-turbo-16k"]
 
@@ -72,6 +74,7 @@ class DocRetrievalAugmentedGen:
         self._doc_ctx_stores = {}
         self._load_index_stores()
         self._chat_mode = ChatMode(chat_mode)
+        self._translator = NLLB(src_language=Language(self._language))
 
     def get_available_models(self) -> List[str]:
         info_dict = ollama.list()
