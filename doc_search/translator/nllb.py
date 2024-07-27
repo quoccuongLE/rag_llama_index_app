@@ -11,13 +11,39 @@ def get_language_name(language_code: str) -> str:
     except langcodes.LanguageLookupError:
         return f"Unknown language code: {language_code}"
 
-# # Example usage:
-# language_code = "eng"
-# language_name = get_language_name(language_code)
-# print(language_name)  # Output: English
+
+LANGUAGE_CODE_REGISTRY: dict[str, str] = {
+    x.split("_")[0]: x.split("_")[1] for x in FAIRSEQ_LANGUAGE_CODES
+}
+
+class Language:
+    language_code: str
+    root_code: str
+    name: str
+
+    def __init__(self, language_code: str) -> None:
+        self.language_code = language_code
+        self.root_code = LANGUAGE_CODE_REGISTRY[language_code]
+        self.name = get_language_name(language_code)
+
+    @staticmethod
+    def from_fair_langcode(fair_langcode: str):
+        lang_code, root_lang_code = fair_langcode.split("_")
+        return Language(language_code=lang_code, root_code=root_lang_code)
+
+    @property
+    def fair_langcode(self):
+        return f"{self.language_code}_{self.root_code}"
+
+    def __repr__(self) -> str:
+        return f"{self.language_code} - {self.name}"
+
+    def __str__(self) -> str:
+        return f"{self.language_code} - {self.name}"
+
 
 class NLLB:
-    src_language: str = "eng_Latn"
+    src_language: Language = Language.from_fair_langcode("eng_Latn")
     model_id: str = "facebook/nllb-200-distilled-600M"
     max_length: int = 256
     device: str = torch.device(torch.cuda.is_available() and "cuda" or "cpu")
