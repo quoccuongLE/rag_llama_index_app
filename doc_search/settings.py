@@ -125,6 +125,12 @@ class ParserConfig(ConfigParams):
     llm: LLMSetting = Field(default_factory=LLMSetting)
 
 
+class TranslatorConfig(ConfigParams):
+    src_language: str = Field(default="eng")
+    max_length: int = Field(default=256)
+    hf_model_id: str = Field(default="facebook/nllb-200-distilled-600M")
+
+
 class RAGSetting(ConfigParams):
     index_store: str = Field(
         default="./data/doc_search/index_store", description="Store for doc index"
@@ -136,3 +142,4 @@ class RAGSetting(ConfigParams):
     embed_model: EmbedModelSetting = Field(default_factory=EmbedModelSetting)
     query_engine: EngineConfig = Field(default_factory=QAEngineConfig)
     parser_config: ParserConfig = Field(default_factory=ParserConfig)
+    translator_config: TranslatorConfig = Field(default_factory=TranslatorConfig)

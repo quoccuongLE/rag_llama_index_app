@@ -535,4 +535,4 @@ def to_markdown(
                 }
             )
 
-    return [document_output] if not page_chunks else document_output
+    return document_output if not page_chunks else document_output

@@ -335,6 +335,7 @@ class LocalChatbotUI:
                                 choices=get_available_languages(),
                                 value="eng - English",
                                 interactive=True,
+                                allow_custom_value=True,
                                 visible=False,
                             )
                             model = gr.Dropdown(

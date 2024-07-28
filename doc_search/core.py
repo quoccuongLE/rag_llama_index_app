@@ -74,7 +74,11 @@ class DocRetrievalAugmentedGen:
         self._doc_ctx_stores = {}
         self._load_index_stores()
         self._chat_mode = ChatMode(chat_mode)
-        self._translator = NLLB(src_language=Language(self._language))
+        self._translator = NLLB(
+            src_language=Language(self._language),
+            max_length=self._setting.translator_config.max_length,
+            model_id=self._setting.translator_config.hf_model_id,
+        )
 
     def get_available_models(self) -> List[str]:
         info_dict = ollama.list()
@@ -212,7 +216,9 @@ class DocRetrievalAugmentedGen:
         )
 
     def set_model(self):
-        Settings.llm = llm_factory.build(config=self._setting.llm, prompt=self._system_prompt)
+        Settings.llm = llm_factory.build(
+            config=self._setting.llm, prompt=self._system_prompt
+        )
 
     def reset_engine(self):
         if self.embed_model not in self._doc_index_stores.keys():
