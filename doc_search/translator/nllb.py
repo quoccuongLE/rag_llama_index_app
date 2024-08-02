@@ -7,7 +7,7 @@ import langcodes
 def get_language_name(language_code: str) -> str:
     try:
         language = langcodes.Language.get(language_code)
-        return language.display_name()
+        return language.display_name(language_code)
     except langcodes.LanguageLookupError:
         return f"Unknown language code: {language_code}"
 
@@ -74,18 +74,18 @@ class NLLB:
         self.max_length = max_length or self.max_length
         self.model_id = model_id or self.model_id
         self.model = (
-            AutoModelForSeq2SeqLM.from_pretrained(self.model_id).to(device).eval()
+            AutoModelForSeq2SeqLM.from_pretrained(self.model_id).to(self.device).eval()
         )
 
     def get_tokenizer(self, src_language: Language) -> AutoTokenizer:
         return AutoTokenizer.from_pretrained(self.model_id, src_lang=src_language.fair_langcode)
 
     def translate(
-        self, sources: list[str], tgt_lang: str, src_lang: str | None = None
+        self, sources: list[str] | str, tgt_lang: str, src_lang: str | None = None
     ) -> str:
         src_lang = Language.from_code_fullname(src_lang)
         tgt_lang = Language.from_code_fullname(tgt_lang)
-        tokenizer = self.get_tokenizer(src_lang=src_lang or self.src_language)
+        tokenizer = self.get_tokenizer(src_language=src_lang or self.src_language)
         inputs = tokenizer(sources, return_tensors="pt", padding=True)
         inputs = {k: v.to(self.device) for k, v in inputs.items()}
 

@@ -334,7 +334,6 @@ class LocalChatbotUI:
                             )
                             language = gr.Dropdown(
                                 label="User Language",
-                                # choices=["vie - Tiếng Việt", "eng - English"],
                                 choices=get_available_languages(),
                                 value="eng - English",
                                 interactive=True,

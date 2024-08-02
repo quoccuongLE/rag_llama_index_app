@@ -211,9 +211,14 @@ class DocRetrievalAugmentedGen:
 
     @system_prompt.setter
     def system_prompt(self, system_prompt: Optional[str] = None):
-        self._system_prompt = system_prompt or get_system_prompt(
+        default_sys_prompt = get_system_prompt(
             language=self._language, is_rag_prompt=self.check_nodes_exist()
         )
+        if self._language not in ["eng", "vie"]:
+            default_sys_prompt = self._translator.translate(
+                default_sys_prompt, tgt_lang=self._language, src_lang="eng"
+            )
+        self._system_prompt = system_prompt or default_sys_prompt
 
     def set_model(self):
         Settings.llm = llm_factory.build(
