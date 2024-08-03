@@ -45,9 +45,10 @@ CSS = """
 
 @dataclass
 class DefaultElement:
-    # DEFAULT_MESSAGE: ClassVar[dict] = {"text": "How do I fine-tune a LLama model?"}
+    DEFAULT_MESSAGE: ClassVar[dict] = {"text": "How to fine-tune a LLama model?"}
+    # DEFAULT_MESSAGE: ClassVar[dict] = {"text": "Comment fine-tune un modèle LLama?"}
     # DEFAULT_MESSAGE: ClassVar[dict] = {"text": "Tell me about the repatriation policy in the insurance contract."}
-    DEFAULT_MESSAGE: ClassVar[dict] = {"text": ""}
+    # DEFAULT_MESSAGE: ClassVar[dict] = {"text": ""}
     DEFAULT_MODEL: str = ""
     DEFAULT_HISTORY: ClassVar[list] = []
     DEFAULT_DOCUMENT: ClassVar[list] = []
@@ -338,7 +339,7 @@ class LocalChatbotUI:
                                 value="eng - English",
                                 interactive=True,
                                 allow_custom_value=True,
-                                visible=False,
+                                visible=True,
                             )
                             model = gr.Dropdown(
                                 label="Choose LLM:",

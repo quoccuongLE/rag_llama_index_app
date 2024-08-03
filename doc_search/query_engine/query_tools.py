@@ -1,14 +1,18 @@
 from enum import Enum
-from typing import Any, Generator, Optional, Sequence
+from typing import Any, Generator, List, Optional, Sequence
 
 from llama_index.core import StorageContext, VectorStoreIndex
+from llama_index.core.base.base_retriever import BaseRetriever
 from llama_index.core.base.response.schema import (
     RESPONSE_TYPE,
     Response,
     StreamingResponse,
 )
+from llama_index.core.callbacks import CallbackManager
 from llama_index.core.chat_engine import SimpleChatEngine, ContextChatEngine
-from llama_index.core.memory import ChatMemoryBuffer
+from llama_index.core.llms.llm import LLM
+from llama_index.core.memory import BaseMemory, ChatMemoryBuffer
+from llama_index.core.postprocessor.types import BaseNodePostprocessor
 from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.core.response_synthesizers import Refine
 from llama_index.core.retrievers import AutoMergingRetriever
@@ -25,6 +29,8 @@ from doc_search.settings import (
     QAEngineConfig,
     SimpleChatEngineConfig,
 )
+from doc_search.translator import Translator, TranslationService
+import gcld3
 
 
 class ChatMode(str, Enum):
@@ -35,6 +41,17 @@ class ChatMode(str, Enum):
 
 def empty_response_generator() -> Generator[str, None, None]:
     yield "Empty Response"
+
+
+class TranslatorContextChatEngine(ContextChatEngine):
+    translator: Translator = TranslationService.translator
+
+    def _generate_context(self, message: str) -> str | list[NodeWithScore]:
+        context_str_template, nodes = self._generate_context(message=message)
+        # TODO: Missing language detector
+        # gcld3
+        context_str_template = self.translator.translate(sources=context_str_template, src_lang=None)
+        return context_str_template, nodes
 
 
 class RawBaseSynthesizer(Refine):

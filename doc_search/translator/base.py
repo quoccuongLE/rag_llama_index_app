@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import torch
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from transformers.models.nllb.tokenization_nllb import FAIRSEQ_LANGUAGE_CODES
@@ -56,20 +57,20 @@ class Language:
         return self.fullname
 
 
-class NLLB:
-    src_language: Language = Language("eng")
+class Translator:
+    tgt_language: Language = Language("eng")
     model_id: str = "facebook/nllb-200-distilled-600M"
     max_length: int = 256
     device: str = torch.device(torch.cuda.is_available() and "cuda" or "cpu")
 
     def __init__(
         self,
-        src_language: Language,
+        tgt_language: Language,
         device: str | None = None,
         max_length: int | None = None,
         model_id: str | None = None,
     ) -> None:
-        self.src_language = src_language
+        self.tgt_language = tgt_language
         self.device = device or self.device
         self.max_length = max_length or self.max_length
         self.model_id = model_id or self.model_id
@@ -81,11 +82,14 @@ class NLLB:
         return AutoTokenizer.from_pretrained(self.model_id, src_lang=src_language.fair_langcode)
 
     def translate(
-        self, sources: list[str] | str, tgt_lang: str, src_lang: str | None = None
+        self,
+        sources: list[str] | str,
+        src_lang: str,
+        tgt_lang: str | None = None,
     ) -> str:
         src_lang = Language.from_code_fullname(src_lang)
-        tgt_lang = Language.from_code_fullname(tgt_lang)
-        tokenizer = self.get_tokenizer(src_language=src_lang or self.src_language)
+        tgt_lang = Language.from_code_fullname(tgt_lang) if tgt_lang else self.tgt_language
+        tokenizer = self.get_tokenizer(src_language=src_lang)
         inputs = tokenizer(sources, return_tensors="pt", padding=True)
         inputs = {k: v.to(self.device) for k, v in inputs.items()}
 
@@ -95,3 +99,19 @@ class NLLB:
             max_length=self.max_length,
         )
         return tokenizer.batch_decode(translated_tokens, skip_special_tokens=True)[0]
+
+
+@dataclass
+class _TranslationService:
+    _translator: Translator = Translator(tgt_language=Language(language_code="eng"), max_length=2048)
+
+    @property
+    def translator(self) -> Translator:
+        return self._translator
+
+    @translator.setter
+    def translator(self, translator: Translator):
+        self._translator = translator
+
+
+TranslationService = _TranslationService()
