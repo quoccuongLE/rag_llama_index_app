@@ -224,6 +224,9 @@ class LocalChatbotUI:
         self._rag_engine.set_chat_mode(language=language)
         gr.Info(f"Change language to {language}")
 
+    def _change_doc_language(self, language: str):
+        self._rag_engine.doc_language = language
+
     def _change_chat_mode(self, chat_mode: str, topk: int, nb_extract_char: int):
         chat_config = dict(type=chat_mode)
         (
@@ -354,6 +357,14 @@ class LocalChatbotUI:
                                 value=self._rag_engine.default_embed_model,
                                 interactive=True,
                                 allow_custom_value=False,
+                            )
+                            doc_language = gr.Dropdown(
+                                label="Document Language",
+                                choices=get_available_languages(),
+                                value="eng - English",
+                                interactive=True,
+                                allow_custom_value=True,
+                                visible=True,
                             )
                             file_list = gr.Dropdown(
                                 label="Choose file:",
@@ -544,6 +555,7 @@ class LocalChatbotUI:
             language.change(self._change_language, inputs=[language]).then(
                 self._clear_chat, outputs=[message, chatbot, status]
             )
+            doc_language.change(self._change_doc_language, inputs=[doc_language])
             embed_model.change(
                 self._change_embed_model, inputs=[embed_model], outputs=[status]
             )

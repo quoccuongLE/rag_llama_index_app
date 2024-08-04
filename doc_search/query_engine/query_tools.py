@@ -29,8 +29,8 @@ from doc_search.settings import (
     QAEngineConfig,
     SimpleChatEngineConfig,
 )
-from doc_search.translator import Translator, TranslationService
-import gcld3
+from doc_search.translator import Translator, TranslationService, Language
+# import gcld3 # TODO: Add language classification/detector
 
 
 class ChatMode(str, Enum):
@@ -44,13 +44,47 @@ def empty_response_generator() -> Generator[str, None, None]:
 
 
 class TranslatorContextChatEngine(ContextChatEngine):
-    translator: Translator = TranslationService.translator
+    # def __init__(self, retriever: BaseRetriever, llm: LLM, memory: BaseMemory, prefix_messages: List[ChatMessage], node_postprocessors: List[BaseNodePostprocessor] | None = None, context_template: str | None = None, callback_manager: CallbackManager | None = None) -> None:
+    #     super().__init__(retriever, llm, memory, prefix_messages, node_postprocessors, context_template, callback_manager)
+    _translator: Translator = TranslationService.translator
+    _src_language: Language | None = None
+    _tgt_language: Language = Language("eng")
+
+    @property
+    def src_language(self) -> Language:
+        return self._src_language
+
+    @src_language.setter
+    def src_language(self, language: str | Language):
+        if isinstance(language, str):
+            language = Language(language)
+        self._src_language = language
+
+    @property
+    def tgt_language(self) -> Language:
+        return self._tgt_language
+
+    @tgt_language.setter
+    def tgt_language(self, language: str | Language):
+        if isinstance(language, str):
+            language = Language.from_code_fullname(language)
+        self._tgt_language = language
 
     def _generate_context(self, message: str) -> str | list[NodeWithScore]:
-        context_str_template, nodes = self._generate_context(message=message)
+        context_str_template, nodes = super()._generate_context(message=message)
+        if (
+            self._tgt_language is None
+            or self._tgt_language.language_code == self._src_language.language_code
+        ):
+            return context_str_template, nodes
+
         # TODO: Missing language detector
         # gcld3
-        context_str_template = self.translator.translate(sources=context_str_template, src_lang=None)
+        context_str_template = self._translator.translate(
+            sources=context_str_template,
+            src_lang=self._src_language,
+            tgt_lang=self._tgt_language,
+        )
         return context_str_template, nodes
 
 
@@ -142,8 +176,10 @@ def build_qa_query_engine(
     else:
         retriever = index.as_retriever(similarity_top_k=config.similarity_top_k)
 
-    return ContextChatEngine(
-        prefix_messages=[ChatMessage.from_str(content=config.prefix_messages, role="system")],
+    return TranslatorContextChatEngine(
+        prefix_messages=[
+            ChatMessage.from_str(content=config.prefix_messages, role="system")
+        ],
         retriever=retriever,
         llm=Settings.llm,
         context_template=config.context_template or qa_template,

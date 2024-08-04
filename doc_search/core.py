@@ -49,6 +49,7 @@ class DocRetrievalAugmentedGen:
         chat_mode: str = "QA",
     ) -> None:
         self._language: str = "eng"
+        self._doc_language: str = "eng"
         self._system_prompt: str = get_system_prompt("eng", is_rag_prompt=False)
         self._setting = RAGSetting()
 
@@ -183,6 +184,17 @@ class DocRetrievalAugmentedGen:
         self._language = lang_code
 
     @property
+    def doc_language(self) -> str:
+        return self._doc_language
+
+    @doc_language.setter
+    def doc_language(self, language: str):
+        lang_code, _ = tuple(language.split(" - ", 1))
+        self._doc_language = lang_code
+        if self._chat_mode == ChatMode.QA:
+            self._query_engine.src_language = self._doc_language
+
+    @property
     def system_prompt(self):
         return self._system_prompt
 
@@ -251,6 +263,8 @@ class DocRetrievalAugmentedGen:
                 index=idx,
                 storage_context=storage_ctx,
             )
+            if self._chat_mode == ChatMode.QA:
+                self._query_engine.src_language = self._doc_language
         else:
             self._query_engine = None
 
