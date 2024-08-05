@@ -84,11 +84,18 @@ class Translator:
     def translate(
         self,
         sources: list[str] | str,
-        src_lang: str,
-        tgt_lang: str | None = None,
+        src_lang: str | Language,
+        tgt_lang: str | Language | None = None,
     ) -> str:
-        src_lang = Language.from_code_fullname(src_lang)
-        tgt_lang = Language.from_code_fullname(tgt_lang) if tgt_lang else self.tgt_language
+        if isinstance(src_lang, str):
+            src_lang = Language(src_lang)
+        if tgt_lang:
+            if isinstance(tgt_lang, str):
+                tgt_lang = Language(tgt_lang)
+        else:
+            tgt_lang = self.tgt_language
+            
+        # tgt_lang = Language(tgt_lang) if tgt_lang else self.tgt_language
         tokenizer = self.get_tokenizer(src_language=src_lang)
         inputs = tokenizer(sources, return_tensors="pt", padding=True)
         inputs = {k: v.to(self.device) for k, v in inputs.items()}
@@ -103,7 +110,7 @@ class Translator:
 
 @dataclass
 class _TranslationService:
-    _translator: Translator = Translator(tgt_language=Language(language_code="eng"), max_length=2048)
+    _translator: Translator = Translator(tgt_language=Language(language_code="eng"), max_length=1024)
 
     @property
     def translator(self) -> Translator:

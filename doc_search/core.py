@@ -182,6 +182,8 @@ class DocRetrievalAugmentedGen:
     def language(self, language: str):
         lang_code, lang_name = tuple(language.split(" - ", 1))
         self._language = lang_code
+        # if self._chat_mode == ChatMode.QA:
+        #     self._query_engine.tgt_language = self._language
 
     @property
     def doc_language(self) -> str:
@@ -265,6 +267,7 @@ class DocRetrievalAugmentedGen:
             )
             if self._chat_mode == ChatMode.QA:
                 self._query_engine.src_language = self._doc_language
+                self._query_engine.tgt_language = self._language
         else:
             self._query_engine = None
 

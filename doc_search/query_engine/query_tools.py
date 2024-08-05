@@ -44,8 +44,7 @@ def empty_response_generator() -> Generator[str, None, None]:
 
 
 class TranslatorContextChatEngine(ContextChatEngine):
-    # def __init__(self, retriever: BaseRetriever, llm: LLM, memory: BaseMemory, prefix_messages: List[ChatMessage], node_postprocessors: List[BaseNodePostprocessor] | None = None, context_template: str | None = None, callback_manager: CallbackManager | None = None) -> None:
-    #     super().__init__(retriever, llm, memory, prefix_messages, node_postprocessors, context_template, callback_manager)
+
     _translator: Translator = TranslationService.translator
     _src_language: Language | None = None
     _tgt_language: Language = Language("eng")
@@ -67,7 +66,7 @@ class TranslatorContextChatEngine(ContextChatEngine):
     @tgt_language.setter
     def tgt_language(self, language: str | Language):
         if isinstance(language, str):
-            language = Language.from_code_fullname(language)
+            language = Language(language)
         self._tgt_language = language
 
     def _generate_context(self, message: str) -> str | list[NodeWithScore]:
