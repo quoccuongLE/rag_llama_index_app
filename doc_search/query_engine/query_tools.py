@@ -1,35 +1,25 @@
 from enum import Enum
-from typing import Any, Generator, List, Optional, Sequence
+from typing import Any, Generator, Optional, Sequence
 
 from llama_index.core import StorageContext, VectorStoreIndex
-from llama_index.core.base.base_retriever import BaseRetriever
-from llama_index.core.base.response.schema import (
-    RESPONSE_TYPE,
-    Response,
-    StreamingResponse,
-)
-from llama_index.core.callbacks import CallbackManager
-from llama_index.core.chat_engine import SimpleChatEngine, ContextChatEngine
-from llama_index.core.llms.llm import LLM
+from llama_index.core.base.response.schema import (RESPONSE_TYPE, Response,
+                                                   StreamingResponse)
+from llama_index.core.chat_engine import ContextChatEngine, SimpleChatEngine
+from llama_index.core.llms import ChatMessage
 from llama_index.core.memory import BaseMemory, ChatMemoryBuffer
-from llama_index.core.postprocessor.types import BaseNodePostprocessor
 from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.core.response_synthesizers import Refine
 from llama_index.core.retrievers import AutoMergingRetriever
-from llama_index.core.schema import NodeWithScore, QueryBundle, QueryType
+from llama_index.core.schema import (MetadataMode, NodeWithScore, QueryBundle,
+                                     QueryType)
 from llama_index.core.settings import Settings
-
-from llama_index.core.llms import ChatMessage
 
 from doc_search.prompt.qa_prompt import qa_template
 from doc_search.query_engine import factory
-from doc_search.settings import (
-    EngineConfig,
-    CitationEngineConfig,
-    QAEngineConfig,
-    SimpleChatEngineConfig,
-)
-from doc_search.translator import Translator, TranslationService, Language
+from doc_search.settings import (CitationEngineConfig, EngineConfig,
+                                 QAEngineConfig, SimpleChatEngineConfig)
+from doc_search.translator import Language, TranslationService, Translator
+
 # import gcld3 # TODO: Add language classification/detector
 
 
@@ -70,21 +60,32 @@ class TranslatorContextChatEngine(ContextChatEngine):
         self._tgt_language = language
 
     def _generate_context(self, message: str) -> str | list[NodeWithScore]:
-        context_str_template, nodes = super()._generate_context(message=message)
-        if (
-            self._tgt_language is None
-            or self._tgt_language.language_code == self._src_language.language_code
-        ):
-            return context_str_template, nodes
-
-        # TODO: Missing language detector
         # gcld3
-        context_str_template = self._translator.translate(
-            sources=context_str_template,
-            src_lang=self._src_language,
-            tgt_lang=self._tgt_language,
-        )
-        return context_str_template, nodes
+        # TODO: Missing language detector
+        nodes = self._retriever.retrieve(message)
+        for postprocessor in self._node_postprocessors:
+            nodes = postprocessor.postprocess_nodes(
+                nodes, query_bundle=QueryBundle(message)
+            )
+
+        if (
+            self._tgt_language and self._tgt_language.language_code != self._src_language.language_code
+        ):
+            draft = []
+            for n in nodes:
+                text = self._translator.translate(
+                    sources=n.node.get_content(metadata_mode=MetadataMode.LLM).strip(),
+                    src_lang=self._src_language,
+                    tgt_lang=self._tgt_language,
+                )
+                draft.append(text)
+            context_str = "\n\n".join(draft)
+        else:
+            context_str = "\n\n".join(
+                [n.node.get_content(metadata_mode=MetadataMode.LLM).strip() for n in nodes]
+            )
+
+        return self._context_template.format(context_str=context_str), nodes
 
 
 class RawBaseSynthesizer(Refine):

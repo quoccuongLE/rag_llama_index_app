@@ -94,8 +94,7 @@ class Translator:
                 tgt_lang = Language(tgt_lang)
         else:
             tgt_lang = self.tgt_language
-            
-        # tgt_lang = Language(tgt_lang) if tgt_lang else self.tgt_language
+
         tokenizer = self.get_tokenizer(src_language=src_lang)
         inputs = tokenizer(sources, return_tensors="pt", padding=True)
         inputs = {k: v.to(self.device) for k, v in inputs.items()}

@@ -46,7 +46,7 @@ CSS = """
 @dataclass
 class DefaultElement:
     DEFAULT_MESSAGE: ClassVar[dict] = {"text": "How to fine-tune a LLama model?"}
-    # DEFAULT_MESSAGE: ClassVar[dict] = {"text": "Comment fine-tune un modèle LLama?"}
+    DEFAULT_MESSAGE: ClassVar[dict] = {"text": "Comment fine-tune un modèle LLama?"}
     # DEFAULT_MESSAGE: ClassVar[dict] = {"text": "Tell me about the repatriation policy in the insurance contract."}
     # DEFAULT_MESSAGE: ClassVar[dict] = {"text": ""}
     DEFAULT_MODEL: str = ""
