@@ -1,6 +1,6 @@
 embed_model:
   host: localhost
-  instruct_prompt: ''
+  query_instruction: ''
   max_seq_length: 8192
   name: mxbai-embed-large
   port: 11434

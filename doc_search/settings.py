@@ -45,7 +45,10 @@ class EmbedModelSetting(ConfigParams):
     request_timeout: float = Field(
         default=120.0, description="Timeout for query requesting to Ollama server"
     )
-    instruct_prompt: str = Field(
+    query_instruction: str = Field(
+        default="", description="Instruct added into user queries"
+    )
+    text_instruction: str = Field(
         default="", description="Instruct added into user queries"
     )
 
