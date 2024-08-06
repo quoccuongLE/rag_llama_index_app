@@ -22,6 +22,8 @@ from .prompt import get_system_prompt
 from .query_engine import factory as qengine_factory
 from .query_engine.query_tools import ChatMode
 from .settings import RAGSetting
+from .translator import Translator, Language, TranslationService
+
 
 _OPENAI_MODELS = ["openai/gpt-4", "openai/gpt-4o", "openai/gpt-3.5-turbo-16k"]
 
@@ -47,6 +49,7 @@ class DocRetrievalAugmentedGen:
         chat_mode: str = "QA",
     ) -> None:
         self._language: str = "eng"
+        self._doc_language: str = "eng"
         self._system_prompt: str = get_system_prompt("eng", is_rag_prompt=False)
         self._setting = RAGSetting()
 
@@ -72,6 +75,12 @@ class DocRetrievalAugmentedGen:
         self._doc_ctx_stores = {}
         self._load_index_stores()
         self._chat_mode = ChatMode(chat_mode)
+        TranslationService.translator = Translator(
+            tgt_language=Language(self._language),
+            max_length=self._setting.translator_config.max_length,
+            model_id=self._setting.translator_config.hf_model_id,
+        )
+        self._translator = TranslationService.translator
 
     def get_available_models(self) -> List[str]:
         info_dict = ollama.list()
@@ -173,6 +182,19 @@ class DocRetrievalAugmentedGen:
     def language(self, language: str):
         lang_code, lang_name = tuple(language.split(" - ", 1))
         self._language = lang_code
+        # if self._chat_mode == ChatMode.QA:
+        #     self._query_engine.tgt_language = self._language
+
+    @property
+    def doc_language(self) -> str:
+        return self._doc_language
+
+    @doc_language.setter
+    def doc_language(self, language: str):
+        lang_code, _ = tuple(language.split(" - ", 1))
+        self._doc_language = lang_code
+        if self._chat_mode == ChatMode.QA:
+            self._query_engine.src_language = self._doc_language
 
     @property
     def system_prompt(self):
@@ -204,12 +226,19 @@ class DocRetrievalAugmentedGen:
 
     @system_prompt.setter
     def system_prompt(self, system_prompt: Optional[str] = None):
-        self._system_prompt = system_prompt or get_system_prompt(
+        default_sys_prompt = get_system_prompt(
             language=self._language, is_rag_prompt=self.check_nodes_exist()
         )
+        if self._language not in ["eng", "vie"]:
+            default_sys_prompt = self._translator.translate(
+                default_sys_prompt, tgt_lang=self._language, src_lang="eng"
+            )
+        self._system_prompt = system_prompt or default_sys_prompt
 
     def set_model(self):
-        Settings.llm = llm_factory.build(config=self._setting.llm, prompt=self._system_prompt)
+        Settings.llm = llm_factory.build(
+            config=self._setting.llm, prompt=self._system_prompt
+        )
 
     def reset_engine(self):
         if self.embed_model not in self._doc_index_stores.keys():
@@ -236,6 +265,9 @@ class DocRetrievalAugmentedGen:
                 index=idx,
                 storage_context=storage_ctx,
             )
+            if self._chat_mode == ChatMode.QA:
+                self._query_engine.src_language = self._doc_language
+                self._query_engine.tgt_language = self._language
         else:
             self._query_engine = None
 

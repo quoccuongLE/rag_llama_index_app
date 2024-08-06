@@ -43,3 +43,4 @@ dependencies:
     - gradio
     - spacy
     - pymupdf4llm
+    - gcld3

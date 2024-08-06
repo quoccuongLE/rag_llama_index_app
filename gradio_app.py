@@ -11,6 +11,7 @@ from llama_index.core.chat_engine.types import StreamingAgentChatResponse
 
 from doc_search import DocRetrievalAugmentedGen
 from doc_search.logger import Logger
+from doc_search.translator import get_available_languages
 
 import fire
 
@@ -44,9 +45,10 @@ CSS = """
 
 @dataclass
 class DefaultElement:
-    # DEFAULT_MESSAGE: ClassVar[dict] = {"text": "How do I fine-tune a LLama model?"}
+    DEFAULT_MESSAGE: ClassVar[dict] = {"text": "How to fine-tune a LLama model?"}
+    DEFAULT_MESSAGE: ClassVar[dict] = {"text": "Comment fine-tune un modèle LLama?"}
     # DEFAULT_MESSAGE: ClassVar[dict] = {"text": "Tell me about the repatriation policy in the insurance contract."}
-    DEFAULT_MESSAGE: ClassVar[dict] = {"text": ""}
+    # DEFAULT_MESSAGE: ClassVar[dict] = {"text": ""}
     DEFAULT_MODEL: str = ""
     DEFAULT_HISTORY: ClassVar[list] = []
     DEFAULT_DOCUMENT: ClassVar[list] = []
@@ -222,6 +224,9 @@ class LocalChatbotUI:
         self._rag_engine.set_chat_mode(language=language)
         gr.Info(f"Change language to {language}")
 
+    def _change_doc_language(self, language: str):
+        self._rag_engine.doc_language = language
+
     def _change_chat_mode(self, chat_mode: str, topk: int, nb_extract_char: int):
         chat_config = dict(type=chat_mode)
         (
@@ -315,6 +320,9 @@ class LocalChatbotUI:
         self._rag_engine.config = yaml.safe_load(config)
         gr.Info(f"Updated full configuration!")
 
+    def _change_src_tgt_languages(self, src_lang: str, tgt_lang: str):
+        return gr.update(value=tgt_lang), gr.update(value=src_lang)
+
     def build(self):
         with gr.Blocks(theme="ParityError/Interstellar") as demo:
             gr.Markdown("## QA semantic search powered by LLM")
@@ -330,10 +338,11 @@ class LocalChatbotUI:
                             )
                             language = gr.Dropdown(
                                 label="User Language",
-                                choices=["vie - Tiếng Việt", "eng - English"],
+                                choices=get_available_languages(),
                                 value="eng - English",
                                 interactive=True,
-                                visible=False,
+                                allow_custom_value=True,
+                                visible=True,
                             )
                             model = gr.Dropdown(
                                 label="Choose LLM:",
@@ -348,6 +357,14 @@ class LocalChatbotUI:
                                 value=self._rag_engine.default_embed_model,
                                 interactive=True,
                                 allow_custom_value=False,
+                            )
+                            doc_language = gr.Dropdown(
+                                label="Document Language",
+                                choices=get_available_languages(),
+                                value="eng - English",
+                                interactive=True,
+                                allow_custom_value=True,
+                                visible=True,
                             )
                             file_list = gr.Dropdown(
                                 label="Choose file:",
@@ -454,6 +471,46 @@ class LocalChatbotUI:
                         sys_cfg_btn = gr.Button(value="Get current system config")
                         apply_cfg_btn = gr.Button(value="Apply config")
 
+            with gr.Tab("Translator"):
+                with gr.Row(variant=self._variant, equal_height=False):
+                    with gr.Column():
+                        with gr.Row():
+                            src_language = gr.Dropdown(
+                                label="Source Language",
+                                choices=get_available_languages(),
+                                value="eng - English",
+                                interactive=True,
+                                allow_custom_value=True,
+                                # visible=False,
+                            )
+                            switch_1 = gr.Button(value="Switch ↔")
+                        with gr.Row():
+                            input_file_obj = (
+                                gr.File(
+                                    label="Input File",
+                                    file_count="single",
+                                    file_types=["", ".", ".pdf", "txt"],
+                                ),
+                            )
+                    with gr.Column():
+                        with gr.Row():
+                            tgt_language = gr.Dropdown(
+                                label="Target Language",
+                                choices=get_available_languages(),
+                                value="fra - French",
+                                interactive=True,
+                                allow_custom_value=True,
+                                # visible=False,
+                            )
+                        with gr.Row():
+                            output_file_obj = (
+                                    gr.File(
+                                        label="Output File",
+                                        file_count="single",
+                                        file_types=["", ".", ".pdf", "txt"],
+                                    ),
+                                )
+
             with gr.Tab("Output"):
                 with gr.Row(variant=self._variant):
                     log = gr.Code(
@@ -498,6 +555,7 @@ class LocalChatbotUI:
             language.change(self._change_language, inputs=[language]).then(
                 self._clear_chat, outputs=[message, chatbot, status]
             )
+            doc_language.change(self._change_doc_language, inputs=[doc_language])
             embed_model.change(
                 self._change_embed_model, inputs=[embed_model], outputs=[status]
             )
@@ -534,6 +592,9 @@ class LocalChatbotUI:
             sys_cfg_btn.click(self._retrieve_rag_cfg, outputs=[system_config])
             apply_cfg_btn.click(self._set_rag_cfg, inputs=[system_config])
             demo.load(self._welcome, outputs=[message, chatbot, status])
+
+            # Translator Tab
+            switch_1.click(self._change_src_tgt_languages, inputs=[src_language, tgt_language], outputs=[src_language, tgt_language])
 
         return demo
 

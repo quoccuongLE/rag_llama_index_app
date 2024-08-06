@@ -3,6 +3,7 @@
 # sudo systemctl daemon-reload
 # sudo systemctl enable ollama
 # sudo systemctl disable ollama
+# ollama serve
 
 sudo docker run -d --rm --gpus all \
     -v /usr/share/ollama/.ollama:/root/.ollama \
