@@ -13,16 +13,15 @@ from llama_index.core.chat_engine.types import StreamingAgentChatResponse
 from llama_index.core.prompts import ChatMessage, MessageRole
 from llama_index.core.base.response.schema import Response
 
-from llama_index.core.query_engine import CitationQueryEngine
-
 from .data_processing.parser import factory as parser_factory
 from .embedding import factory as embedding_factory
 from .llm import factory as llm_factory
 from .prompt import get_system_prompt
 from .query_engine import factory as qengine_factory
+from .translator import factory as translator_factory
 from .query_engine.query_tools import ChatMode
 from .settings import RAGSetting
-from .translator import Translator, Language, TranslationService
+from .translator import TranslationService
 
 
 _OPENAI_MODELS = ["openai/gpt-4", "openai/gpt-4o", "openai/gpt-3.5-turbo-16k"]
@@ -33,7 +32,7 @@ _EMBED_MODELS = [
     "ollama/all-minilm",
     "ollama/snowflake-arctic-embed",
     "ollama/rjmalagon/gte-qwen2-1.5b-instruct-embed-f16",  # (New default - max context = 32000; d = 1536)
-    "ollama/llama3.1", # The new llama3.1 support multilingual
+    # "ollama/llama3.1", # The new llama3.1 support multilingual
     "huggingface/Alibaba-NLP/gte-Qwen2-1.5B-instruct",
     "huggingface/intfloat/multilingual-e5-large-instruct",  # instruct added into query
     "huggingface/intfloat/multilingual-e5-small",
@@ -77,10 +76,9 @@ class DocRetrievalAugmentedGen:
         self._doc_ctx_stores = {}
         self._load_index_stores()
         self._chat_mode = ChatMode(chat_mode)
-        TranslationService.translator = Translator(
-            tgt_language=Language(self._language),
-            max_length=self._setting.translator_config.max_length,
-            model_id=self._setting.translator_config.hf_model_id,
+        TranslationService.translator = translator_factory.build(
+            config=self._setting.translator_config,
+            tgt_language=self._language,
         )
         self._translator = TranslationService.translator
 

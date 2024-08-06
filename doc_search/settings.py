@@ -129,8 +129,8 @@ class ParserConfig(ConfigParams):
 
 
 class TranslatorConfig(ConfigParams):
-    src_language: str = Field(default="eng")
-    max_length: int = Field(default=2048)
+    type: str = Field(default="llm_translator")
+    max_length: int = Field(default=1024)
     hf_model_id: str = Field(default="facebook/nllb-200-distilled-600M")
 
 
