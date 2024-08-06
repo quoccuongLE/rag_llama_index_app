@@ -32,6 +32,8 @@ _EMBED_MODELS = [
     "ollama/nomic-embed-text",  # (Recommended for long context (8192 max) d = 768)
     "ollama/all-minilm",
     "ollama/snowflake-arctic-embed",
+    "ollama/rjmalagon/gte-qwen2-1.5b-instruct-embed-f16",  # (New default - max context = 32000; d = 1536)
+    "ollama/llama3.1", # The new llama3.1 support multilingual
     "huggingface/Alibaba-NLP/gte-Qwen2-1.5B-instruct",
     "huggingface/intfloat/multilingual-e5-large-instruct",  # instruct added into query
     "huggingface/intfloat/multilingual-e5-small",
@@ -58,7 +60,7 @@ class DocRetrievalAugmentedGen:
                 setting = yaml.safe_load(f)
         self._setting.override(setting)
 
-        self._model_name: str = self._setting.llm.model or "llama3"
+        self._model_name: str = self._setting.llm.model or "llama3.1"
         self._query_engine = None
         self._parser = parser_factory.build(
             config=self._setting.parser_config, data_runtime=self._setting.index_store
@@ -98,7 +100,7 @@ class DocRetrievalAugmentedGen:
 
     @property
     def default_embed_model(self) -> str:
-        return "ollama/mxbai-embed-large"
+        return "ollama/rjmalagon/gte-qwen2-1.5b-instruct-embed-f16"
 
     def _read_doc_and_load_index(
         self, filename: Path, forced_indexing: bool = False
