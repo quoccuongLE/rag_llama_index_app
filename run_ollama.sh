@@ -8,10 +8,10 @@
 sudo docker run -d --rm --gpus all \
     -v /usr/share/ollama/.ollama:/root/.ollama \
     -p 11434:11434 \
-    ollama/ollama:latest
+    ollama/ollama:0.1.48
 
 
 sudo docker run -d --rm --gpus all \
     -v /usr/share/ollama/.ollama:/root/.ollama \
     -p 11435:11434 \
-    ollama/ollama:latest
+    ollama/ollama:0.1.48
