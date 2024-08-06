@@ -1,23 +1,36 @@
 from enum import Enum
-from typing import Any, Generator, Optional, Sequence
+from typing import Any, Generator, List, Optional, Sequence
 
 from llama_index.core import StorageContext, VectorStoreIndex
-from llama_index.core.base.response.schema import (RESPONSE_TYPE, Response,
-                                                   StreamingResponse)
+from llama_index.core.base.base_retriever import BaseRetriever
+from llama_index.core.base.response.schema import (
+    RESPONSE_TYPE,
+    Response,
+    StreamingResponse,
+)
+from llama_index.core.callbacks import CallbackManager
 from llama_index.core.chat_engine import ContextChatEngine, SimpleChatEngine
 from llama_index.core.llms import ChatMessage
+from llama_index.core.llms.llm import LLM
 from llama_index.core.memory import BaseMemory, ChatMemoryBuffer
+from llama_index.core.postprocessor.types import BaseNodePostprocessor
 from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.core.response_synthesizers import Refine
 from llama_index.core.retrievers import AutoMergingRetriever
-from llama_index.core.schema import (MetadataMode, NodeWithScore, QueryBundle,
-                                     QueryType)
+from llama_index.core.schema import MetadataMode, NodeWithScore, QueryBundle, QueryType
 from llama_index.core.settings import Settings
+from tqdm import tqdm
+
+from llama_index.core.chat_engine.types import StreamingAgentChatResponse
 
 from doc_search.prompt.qa_prompt import qa_template
 from doc_search.query_engine import factory
-from doc_search.settings import (CitationEngineConfig, EngineConfig,
-                                 QAEngineConfig, SimpleChatEngineConfig)
+from doc_search.settings import (
+    CitationEngineConfig,
+    EngineConfig,
+    QAEngineConfig,
+    SimpleChatEngineConfig,
+)
 from doc_search.translator import Language, TranslationService, Translator
 
 # import gcld3 # TODO: Add language classification/detector
@@ -38,6 +51,49 @@ class TranslatorContextChatEngine(ContextChatEngine):
     _translator: Translator = TranslationService.translator
     _src_language: Language | None = None
     _tgt_language: Language = Language("eng")
+    _show_process: bool = True
+    _translate_node: bool = False
+    _postfix_message: str = " Please answer in "
+
+    def __init__(
+        self,
+        retriever: BaseRetriever,
+        llm: LLM,
+        memory: BaseMemory,
+        prefix_messages: List[ChatMessage],
+        node_postprocessors: List[BaseNodePostprocessor] | None = None,
+        context_template: str | None = None,
+        callback_manager: CallbackManager | None = None,
+    ) -> None:
+        super().__init__(
+            retriever,
+            llm,
+            memory,
+            prefix_messages,
+            node_postprocessors,
+            context_template,
+            callback_manager,
+        )
+        # self._transtate_prefix_messages()
+
+    def _transtate_prefix_messages(self):
+        if self._tgt_language.language_code == "eng":
+            return
+
+        self._context_template = self._translator.translate(
+            sources=self._context_template,
+            src_lang="eng",
+            tgt_lang=self._tgt_language.language_code,
+        )
+
+        for message in self._prefix_messages:
+            if len(message.content) == 0:
+                continue
+            message.content = self._translator.translate(
+                sources=message.content,
+                src_lang="eng",
+                tgt_lang=self._tgt_language.language_code,
+            )
 
     @property
     def src_language(self) -> Language:
@@ -58,6 +114,17 @@ class TranslatorContextChatEngine(ContextChatEngine):
         if isinstance(language, str):
             language = Language(language)
         self._tgt_language = language
+        # self._transtate_prefix_messages()
+
+    def stream_chat(
+        self, message: str, chat_history: Optional[List[ChatMessage]] = None
+    ) -> StreamingAgentChatResponse:
+        message += self._translator.translate(
+            sources=self._postfix_message + f"{self._tgt_language.english_name}",
+            src_lang="eng",
+            tgt_lang=self._tgt_language.language_code,
+        )
+        return super().stream_chat(message, chat_history)
 
     def _generate_context(self, message: str) -> str | list[NodeWithScore]:
         # gcld3
@@ -69,10 +136,16 @@ class TranslatorContextChatEngine(ContextChatEngine):
             )
 
         if (
-            self._tgt_language and self._tgt_language.language_code != self._src_language.language_code
+            self._tgt_language
+            and self._translate_node
+            and self._tgt_language.language_code != self._src_language.language_code
         ):
             draft = []
-            for n in nodes:
+            if self._show_process:
+                node_iterator = tqdm(nodes, desc="Translating text ...")
+            else:
+                node_iterator
+            for n in node_iterator:
                 text = self._translator.translate(
                     sources=n.node.get_content(metadata_mode=MetadataMode.LLM).strip(),
                     src_lang=self._src_language,
@@ -82,7 +155,10 @@ class TranslatorContextChatEngine(ContextChatEngine):
             context_str = "\n\n".join(draft)
         else:
             context_str = "\n\n".join(
-                [n.node.get_content(metadata_mode=MetadataMode.LLM).strip() for n in nodes]
+                [
+                    n.node.get_content(metadata_mode=MetadataMode.LLM).strip()
+                    for n in nodes
+                ]
             )
 
         return self._context_template.format(context_str=context_str), nodes

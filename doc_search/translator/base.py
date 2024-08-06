@@ -1,14 +1,19 @@
 from dataclasses import dataclass
+
+import langcodes
 import torch
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from transformers.models.nllb.tokenization_nllb import FAIRSEQ_LANGUAGE_CODES
-import langcodes
 
 
-def get_language_name(language_code: str) -> str:
+def get_language_name(language_code: str, display_lang: str | None = None) -> str:
     try:
         language = langcodes.Language.get(language_code)
-        return language.display_name(language_code)
+        return (
+            language.display_name(display_lang)
+            if display_lang
+            else language.display_name(language_code)
+        )
     except langcodes.LanguageLookupError:
         return f"Unknown language code: {language_code}"
 
@@ -26,11 +31,13 @@ class Language:
     language_code: str
     root_code: str
     name: str
+    english_name: str
 
     def __init__(self, language_code: str) -> None:
         self.language_code = language_code
         self.root_code = LANGUAGE_CODE_REGISTRY[language_code]
         self.name = get_language_name(language_code)
+        self.english_name = get_language_name(language_code, display_lang="eng")
 
     @staticmethod
     def from_fair_langcode(fair_langcode: str):
