@@ -45,7 +45,10 @@ class EmbedModelSetting(ConfigParams):
     request_timeout: float = Field(
         default=120.0, description="Timeout for query requesting to Ollama server"
     )
-    instruct_prompt: str = Field(
+    query_instruction: str = Field(
+        default="", description="Instruct added into user queries"
+    )
+    text_instruction: str = Field(
         default="", description="Instruct added into user queries"
     )
 
@@ -126,8 +129,8 @@ class ParserConfig(ConfigParams):
 
 
 class TranslatorConfig(ConfigParams):
-    src_language: str = Field(default="eng")
-    max_length: int = Field(default=2048)
+    type: str = Field(default="llm_translator")
+    max_length: int = Field(default=1024)
     hf_model_id: str = Field(default="facebook/nllb-200-distilled-600M")
 
 

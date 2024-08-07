@@ -8,7 +8,7 @@ embed_model:
   name: mxbai-embed-large
   max_seq_length: 8192
   request_timeout: 120.0
-  instruct_prompt: ""
+  query_instruction: ""
 query_engine:
   type: QA
   similarity_top_k: 12

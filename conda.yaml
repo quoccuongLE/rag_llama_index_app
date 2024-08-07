@@ -29,13 +29,14 @@ dependencies:
   - pip
   - pip:
     - fire
-    - llama-index==0.10.50
     - openai
-    - InstructorEmbedding
-    - git+https://github.com/FlagOpen/FlagEmbedding.git
+    - llama-index==0.10.61
     - llama-index-llms-ollama
     - llama-index-embeddings-ollama
+    - llama-index-embeddings-huggingface
     - llama-index-vector-stores-milvus
+    - InstructorEmbedding
+    - git+https://github.com/FlagOpen/FlagEmbedding.git
     - sentence_transformers
     - sentencepiece
     - ollama

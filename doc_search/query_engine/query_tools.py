@@ -52,7 +52,7 @@ class TranslatorContextChatEngine(ContextChatEngine):
     _src_language: Language | None = None
     _tgt_language: Language = Language("eng")
     _show_process: bool = True
-    _translate_node: bool = False
+    _translate_node: bool = True
     _postfix_message: str = " Please answer in "
 
     def __init__(

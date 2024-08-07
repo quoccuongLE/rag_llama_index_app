@@ -5,6 +5,9 @@ import torch
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from transformers.models.nllb.tokenization_nllb import FAIRSEQ_LANGUAGE_CODES
 
+from doc_search.settings import TranslatorConfig
+from doc_search.translator import factory
+
 
 def get_language_name(language_code: str, display_lang: str | None = None) -> str:
     try:
@@ -86,7 +89,9 @@ class Translator:
         )
 
     def get_tokenizer(self, src_language: Language) -> AutoTokenizer:
-        return AutoTokenizer.from_pretrained(self.model_id, src_lang=src_language.fair_langcode)
+        return AutoTokenizer.from_pretrained(
+            self.model_id, src_lang=src_language.fair_langcode
+        )
 
     def translate(
         self,
@@ -114,9 +119,23 @@ class Translator:
         return tokenizer.batch_decode(translated_tokens, skip_special_tokens=True)[0]
 
 
+@factory.register_builder("nllb")
+def build_base_translator(
+    tgt_language: str,
+    config: TranslatorConfig,
+):
+    return Translator(
+        tgt_language=Language(tgt_language),
+        max_length=config.max_length,
+        model_id=config.hf_model_id,
+    )
+
+
 @dataclass
 class _TranslationService:
-    _translator: Translator = Translator(tgt_language=Language(language_code="eng"), max_length=1024)
+    _translator: Translator = Translator(
+        tgt_language=Language(language_code="eng"), max_length=1024
+    )
 
     @property
     def translator(self) -> Translator:
