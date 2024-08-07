@@ -1,4 +1,9 @@
+import json
+
+from langchain.output_parsers import ResponseSchema, StructuredOutputParser
 from llama_index.core import PromptTemplate
+from llama_index.core.output_parsers import LangchainOutputParser
+from llama_index.core.output_parsers.utils import _marshal_llm_to_json
 from llama_index.core.settings import Settings
 
 from doc_search.settings import TranslatorConfig
@@ -9,7 +14,10 @@ from .base import Language, Translator
 
 class LLMTranslator(Translator):
     _template: PromptTemplate = PromptTemplate(
-        "Translate the following passage into {language_name}:\n{text_str}\n"
+        "Translate the following passage into {language_name}:"
+        "\n---------------------\n"
+        "{text_str}\n"
+        "\n---------------------"
     )
 
     def __init__(
@@ -32,11 +40,32 @@ class LLMTranslator(Translator):
                 tgt_lang = Language(tgt_lang)
         else:
             tgt_lang = self.tgt_language
-        translated_text = self.llm.complete(
+        response_schemas = [
+            ResponseSchema(
+                name="translated_text",
+                description=(
+                    f"The translation in {tgt_lang.english_name} of the original passage"
+                ),
+            ),
+        ]
+
+        lc_output_parser = StructuredOutputParser.from_response_schemas(
+            response_schemas
+        )
+        output_parser = LangchainOutputParser(lc_output_parser)
+        final_query = output_parser.format(
             self._template.format(language_name=tgt_lang.english_name, text_str=sources)
         )
-        #TODO: post processing to extract refined response
-        return translated_text.text
+        response = self.llm.complete(final_query)
+        return self._parse(response.text)["translated_text"]
+
+    def _parse(self, output: str) -> dict:
+        json_string = _marshal_llm_to_json(output)
+        json_obj = json.loads(json_string)
+
+        if not json_obj:
+            raise ValueError(f"Failed to convert output to JSON: {output!r}")
+        return json_obj
 
 
 @factory.register_builder("llm_translator")
