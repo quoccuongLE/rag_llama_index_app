@@ -323,6 +323,22 @@ class LocalChatbotUI:
     def _change_src_tgt_languages(self, src_lang: str, tgt_lang: str):
         return gr.update(value=tgt_lang), gr.update(value=src_lang)
 
+    def _preprocess(self, document: str, src_lang: str, tgt_lang: str, export_file: str = "tmp/output.md"):
+        self._rag_engine._parser.read_file(filename=document, indexing=False)
+        try:
+            chunk_full_text = self._rag_engine._parser.doc_loader._chunk_full_text
+            tgt_lang, _ = tuple(tgt_lang.split(" - ", 1))
+            src_lang, _ = tuple(src_lang.split(" - ", 1))
+            translated = self._rag_engine._translator.translate(
+                chunk_full_text, tgt_lang=tgt_lang, src_lang=src_lang
+            )
+            with open(export_file, "w+", encoding='utf-8') as f:
+                f.write(translated)
+        except:
+            raise NotImplementedError
+
+        return gr.update(value=export_file, visible=True)
+
     def build(self):
         with gr.Blocks(theme="ParityError/Interstellar") as demo:
             gr.Markdown("## QA semantic search powered by LLM")
@@ -485,13 +501,14 @@ class LocalChatbotUI:
                             )
                             switch_1 = gr.Button(value="Switch ↔")
                         with gr.Row():
-                            input_file_obj = (
-                                gr.File(
-                                    label="Input File",
-                                    file_count="single",
-                                    file_types=["", ".", ".pdf", "txt"],
-                                ),
+                            input_doc = gr.File(
+                                label="Input File",
+                                file_count="single",
+                                file_types=["", ".", ".pdf", "txt"],
+                                visible=True
                             )
+                        with gr.Row():
+                            translate_button = gr.Button("Translate")
                     with gr.Column():
                         with gr.Row():
                             tgt_language = gr.Dropdown(
@@ -503,13 +520,7 @@ class LocalChatbotUI:
                                 # visible=False,
                             )
                         with gr.Row():
-                            output_file_obj = (
-                                    gr.File(
-                                        label="Output File",
-                                        file_count="single",
-                                        file_types=["", ".", ".pdf", "txt"],
-                                    ),
-                                )
+                            output_doc = gr.File(label="Output File", value=None, visible=False)
 
             with gr.Tab("Output"):
                 with gr.Row(variant=self._variant):
@@ -595,6 +606,16 @@ class LocalChatbotUI:
 
             # Translator Tab
             switch_1.click(self._change_src_tgt_languages, inputs=[src_language, tgt_language], outputs=[src_language, tgt_language])
+            # upload_doc_btn_2.upload(
+            #     self._upload_document,
+            #     inputs=[input_doc, upload_doc_btn_2],
+            #     outputs=[input_doc, upload_doc_btn_2],
+            # )
+            translate_button.click(
+                self._preprocess,
+                inputs=[input_doc, src_language, tgt_language],
+                outputs=[output_doc],
+            )
 
         return demo
 

@@ -54,22 +54,31 @@ class LlamaParser(SimpleParser):
     def __init__(self, node_parser: NodeParser, **kwargs):
         super().__init__(**kwargs)
         self.node_parser = node_parser
+        self.doc_loader = None
 
-    def read_file(self, filename: Path, dirname: str):
+    def read_file(self, filename: Path | str, dirname: str | None = None, indexing: bool = True):
+        if isinstance(filename, str):
+            filename = Path(filename)
         assert filename.is_file(), f"Input path {filename} is not a file !"
-        doc_loader = loader_factory.build(
-            name=self.parser_config.loader_name,
-            file=filename,
-            config=self.parser_config.loader_config,
-        )
-        documents = doc_loader.load_data(str(filename))
-        # NOTE: This parser doesn't use pre-built indexer
-        nodes = self.node_parser.get_nodes_from_documents(documents)
-        base_nodes, objects = self.node_parser.get_nodes_and_objects(nodes)
+        if not dirname:
+            dirname = filename.name
+        if self.doc_loader is None:
+            self.doc_loader = loader_factory.build(
+                name=self.parser_config.loader_name,
+                file=filename,
+                config=self.parser_config.loader_config,
+            )
+        documents = self.doc_loader.load_data(str(filename))
+        if indexing:
+            # NOTE: This parser doesn't use pre-built indexer
+            nodes = self.node_parser.get_nodes_from_documents(documents)
+            base_nodes, objects = self.node_parser.get_nodes_and_objects(nodes)
 
-        recursive_index = VectorStoreIndex(nodes=base_nodes + objects)
-        recursive_index.storage_context.persist(persist_dir=self.data_runtime / dirname)
-        return recursive_index, recursive_index.storage_context
+            recursive_index = VectorStoreIndex(nodes=base_nodes + objects)
+            recursive_index.storage_context.persist(persist_dir=self.data_runtime / dirname)
+            return recursive_index, recursive_index.storage_context
+        else:
+            return None, None
 
 
 @factory.register_builder("simple_parser")

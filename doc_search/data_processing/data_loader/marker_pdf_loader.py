@@ -14,6 +14,7 @@ from tqdm import tqdm
 from .utils.marker_pdf import convert_single_pdf_no_images
 from doc_search.data_processing.data_loader import factory
 from doc_search.settings import LoaderConfig
+from marker.postprocessors.markdown import get_full_text
 
 
 text_summary_template = PromptTemplate(
@@ -60,6 +61,7 @@ class MarkerPDFReader(BaseReader):
         self.batch_multiplier = batch_multiplier
         self.page_merge = page_merge
         self._model_list = load_all_models()
+        self._chunk_full_text: str = ""
 
     def load_data(
         self,
@@ -82,10 +84,11 @@ class MarkerPDFReader(BaseReader):
             model_lst=self._model_list,
             max_pages=self.max_pages,
             langs=self.langs,
-            batch_multiplier=self.batch_multiplier,
+            batch_multiplier=self.batch_multiplier, 
             start_page=self.start_page,
             page_merge=self.page_merge,
         )
+        self._chunk_full_text = "".join(full_texts)
         index_documents = []
         extra_info = extra_info or {}
         for text in full_texts:
@@ -103,6 +106,10 @@ class MarkerPDFReader(BaseReader):
                 index_documents.append(LlamaIndexDocument(text=text, extra_info=extra_info))
 
         return index_documents
+
+    def save_doc(self, filepath: Path):
+        with open(filepath, "w+", encoding='utf-8') as f:
+            f.write(self._chunk_full_text)
 
 
 @factory.register_builder("marker_pdf_reader")

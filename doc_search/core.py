@@ -14,6 +14,7 @@ from llama_index.core.prompts import ChatMessage, MessageRole
 from llama_index.core.base.response.schema import Response
 
 from .data_processing.parser import factory as parser_factory
+from .data_processing.parser.data_parsing import SimpleParser
 from .embedding import factory as embedding_factory
 from .llm import factory as llm_factory
 from .prompt import get_system_prompt
@@ -21,7 +22,7 @@ from .query_engine import factory as qengine_factory
 from .translator import factory as translator_factory
 from .query_engine.query_tools import ChatMode
 from .settings import RAGSetting
-from .translator import TranslationService
+from .translator import TranslationService, Translator
 
 
 _OPENAI_MODELS = ["openai/gpt-4", "openai/gpt-4o", "openai/gpt-3.5-turbo-16k"]
@@ -52,7 +53,7 @@ class DocRetrievalAugmentedGen:
         self._language: str = "eng"
         self._doc_language: str = "eng"
         self._system_prompt: str = get_system_prompt("eng", is_rag_prompt=False)
-        self._setting = RAGSetting()
+        self._setting: RAGSetting = RAGSetting()
 
         if isinstance(setting, str):
             with open(setting, "r") as f:
@@ -61,7 +62,7 @@ class DocRetrievalAugmentedGen:
 
         self._model_name: str = self._setting.llm.model or "llama3.1"
         self._query_engine = None
-        self._parser = parser_factory.build(
+        self._parser: SimpleParser = parser_factory.build(
             config=self._setting.parser_config, data_runtime=self._setting.index_store
         )
 
@@ -75,12 +76,12 @@ class DocRetrievalAugmentedGen:
         self._doc_index_stores = {}
         self._doc_ctx_stores = {}
         self._load_index_stores()
-        self._chat_mode = ChatMode(chat_mode)
+        self._chat_mode: ChatMode = ChatMode(chat_mode)
         TranslationService.translator = translator_factory.build(
             config=self._setting.translator_config,
             tgt_language=self._language,
         )
-        self._translator = TranslationService.translator
+        self._translator: Translator = TranslationService.translator
 
     def get_available_models(self) -> List[str]:
         info_dict = ollama.list()

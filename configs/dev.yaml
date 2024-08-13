@@ -10,7 +10,7 @@ file_storage: ./data/doc_search/docs
 index_store: ./data/doc_search/index_store
 llm:
   host: localhost
-  model: llama3
+  model: llama3.1
   port: 11434
   request_timeout: 120.0
   system_prompt: This is a chat between a user and an artificial intelligence assistant.
@@ -25,7 +25,7 @@ parser_config:
 When a benefits/coverage/exlusion is describe in the document ammend to it add a text in the follwing benefits string format (where coverage could be an exclusion). For {nameofrisk} and in this condition {whenDoesThecoverageApply} the coverage is {coverageDescription}. If the document contain a benefits TABLE that describe coverage amounts, do not ouput it as a table, but instead as a list of benefits string."
   llm:
     host: localhost
-    model: llama3
+    model: llama3.1
     port: 11434
     request_timeout: 120.0
     system_prompt: ""

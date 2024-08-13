@@ -28,6 +28,7 @@ class LLMSetting(ConfigParams):
     system_prompt: str = Field(default=get_system_prompt(language="eng", is_rag_prompt=False))
     temperature: float = Field(default=0.5, description="The temperature to use for sampling.")
     request_timeout: float = Field(default=120.0, description="Timeout for query requesting to Ollama server")
+    context_window: int = Field(default=20480)
     host: str = Field(default="localhost")
     port: int = Field(default=11434)
 

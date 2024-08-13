@@ -57,7 +57,7 @@ class LLMTranslator(Translator):
             self._template.format(language_name=tgt_lang.english_name, text_str=sources)
         )
         response = self.llm.complete(final_query)
-        return self._parse(response.text)["translated_text"]
+        return self._parse(response.text).get("translated_text")
 
     def _parse(self, output: str) -> dict:
         json_string = _marshal_llm_to_json(output)
