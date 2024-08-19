@@ -19,6 +19,7 @@ from tqdm import tqdm
 
 from doc_search.data_processing.data_loader import factory
 from doc_search.settings import LoaderConfig
+from .multilingual_base import MultiLingualBaseReader
 
 from .utils.pymupdf import to_markdown
 
@@ -38,7 +39,7 @@ def to_markdown_star(args):
     return to_markdown(*args)
 
 
-class PDFMarkdownReader(BaseReader):
+class PDFMarkdownReader(MultiLingualBaseReader):
     """Read PDF files using PyMuPDF library."""
 
     meta_filter: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None

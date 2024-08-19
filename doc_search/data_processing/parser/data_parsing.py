@@ -56,7 +56,15 @@ class LlamaParser(SimpleParser):
         self.node_parser = node_parser
         self.doc_loader = None
 
-    def read_file(self, filename: Path | str, dirname: str | None = None, indexing: bool = True):
+    def read_file(
+        self,
+        filename: Path | str,
+        dirname: str | None = None,
+        indexing: bool = True,
+        translate: bool = False,
+        src_language: str | None = None,
+        tgt_language: str | None = None,
+    ):
         if isinstance(filename, str):
             filename = Path(filename)
         assert filename.is_file(), f"Input path {filename} is not a file !"
@@ -68,10 +76,15 @@ class LlamaParser(SimpleParser):
                 file=filename,
                 config=self.parser_config.loader_config,
             )
-        documents = self.doc_loader.load_data(str(filename))
+        index_documents = self.doc_loader.load_data(
+            str(filename),
+            translate=translate,
+            src_language=src_language,
+            tgt_language=tgt_language,
+        )
         if indexing:
             # NOTE: This parser doesn't use pre-built indexer
-            nodes = self.node_parser.get_nodes_from_documents(documents)
+            nodes = self.node_parser.get_nodes_from_documents(index_documents)
             base_nodes, objects = self.node_parser.get_nodes_and_objects(nodes)
 
             recursive_index = VectorStoreIndex(nodes=base_nodes + objects)

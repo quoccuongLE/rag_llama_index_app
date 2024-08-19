@@ -5,9 +5,10 @@ from typing import Any, Dict, List, Optional, Tuple, cast
 from llama_index.core import SimpleDirectoryReader
 from llama_index.core.readers.base import BaseReader
 from llama_index.core.schema import Document, NodeRelationship, RelatedNodeInfo
+from .multilingual_base import MultiLingualBaseReader
 
 
-class MarkdownDocsReader(BaseReader):
+class MarkdownDocsReader(MultiLingualBaseReader):
     """MarkdownDocsReader
 
     Extract text from markdown files into Document objects.
@@ -127,7 +128,7 @@ class MarkdownDocsReader(BaseReader):
                     current_code_block += line + "\n"
             else:
                 current_text += line + "\n"
-        
+
         # catch remaining text
         if current_text.strip() != "":
             markdown_docs.append(

@@ -1,20 +1,17 @@
 import copy
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import List
 
-from fitz import Document as FitzDocument
 from llama_index.core import PromptTemplate, Settings
 from llama_index.core.readers.base import BaseReader
 from llama_index.core.schema import Document as LlamaIndexDocument
 from marker.models import load_all_models
-from marker.settings import settings
-from pymupdf4llm import IdentifyHeaders, to_markdown
 from tqdm import tqdm
 
 from .utils.marker_pdf import convert_single_pdf_no_images
 from doc_search.data_processing.data_loader import factory
 from doc_search.settings import LoaderConfig
-from marker.postprocessors.markdown import get_full_text
+from .multilingual_base import MultiLingualBaseReader
 
 
 text_summary_template = PromptTemplate(
@@ -29,7 +26,7 @@ text_summary_template = PromptTemplate(
 )
 
 
-class MarkerPDFReader(BaseReader):
+class MarkerPDFReader(MultiLingualBaseReader):
     """Read PDF files using Marker PDF library."""
 
     show_progress: bool = False
@@ -52,6 +49,7 @@ class MarkerPDFReader(BaseReader):
         page_merge: bool = False,
         show_progress: bool = False,
     ):
+        super().__init__()
         self.text_summarize = text_summarize
         self.parsing_instruction = parsing_instruction
         self.show_progress = show_progress
@@ -67,6 +65,10 @@ class MarkerPDFReader(BaseReader):
         self,
         file_path: Path | str,
         extra_info: dict | None = None,
+        translate: bool = False,
+        src_language: str | None = None,
+        tgt_language: str | None = None,
+        indexing: bool = True,
         **kwargs: any,
     ) -> List[LlamaIndexDocument]:
         """Loads list of documents from PDF file and also accepts extra information in dict format.
@@ -88,7 +90,21 @@ class MarkerPDFReader(BaseReader):
             start_page=self.start_page,
             page_merge=self.page_merge,
         )
-        self._chunk_full_text = "".join(full_texts)
+        if translate:
+            translation = []
+            for text in full_texts:
+                new_text = self.translate_node_text(
+                    text=text, src_lang=src_language,
+                    tgt_lang=tgt_language
+                )  # src_lang not meant to be declared
+                translation.append(new_text)
+            self._chunk_full_text = "".join(translation)
+        else:
+            self._chunk_full_text = "".join(full_texts)
+        
+        if not indexing:
+            return
+
         index_documents = []
         extra_info = extra_info or {}
         for text in full_texts:
