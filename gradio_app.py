@@ -340,12 +340,16 @@ class LocalChatbotUI:
             tgt_language=tgt_lang,
         )
         try:
-            chunk_full_text = self._rag_engine._parser.doc_loader._chunk_full_text
-            translated = self._rag_engine._translator.translate(
-                chunk_full_text, tgt_lang=tgt_lang, src_lang=src_lang
+            # chunk_full_text = self._rag_engine._parser.doc_loader._chunk_full_text
+            # translated = self._rag_engine._translator.translate(
+            #     chunk_full_text, tgt_lang=tgt_lang, src_lang=src_lang
+            # )
+            # with open(export_file, "w+", encoding="utf-8") as f:
+            #     f.write(translated)
+            # self._rag_engine._parser.doc_loader.save_doc(export_file, translated_text=True)
+            self._rag_engine.parser.doc_loader.save_doc(
+                filepath=Path(export_file), translated_text=True
             )
-            with open(export_file, "w+", encoding="utf-8") as f:
-                f.write(translated)
         except:
             raise NotImplementedError
 

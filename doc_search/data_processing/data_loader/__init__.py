@@ -1,8 +1,6 @@
 from .data_loader import *
-from .pdf_loader import PDFMarkdownReader
 from .marker_pdf_loader import MarkerPDFReader
+from .multilingual_base import MultiLingualBaseReader
+from .pdf_loader import PDFMarkdownReader
 
-__all__ = [
-    "PDFMarkdownReader",
-    "MarkerPDFReader",
-]
+__all__ = ["PDFMarkdownReader", "MarkerPDFReader", "MultiLingualBaseReader"]

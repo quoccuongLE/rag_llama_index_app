@@ -221,6 +221,10 @@ class DocRetrievalAugmentedGen:
         Settings.embed_model = embedding_factory.build(config=self._setting.embed_model)
         self._load_index_stores()
 
+    @property
+    def parser(self) -> SimpleParser:
+        return self._parser
+
     def check_nodes_exist(self):
         # return len(self._query_engine_tools.values()) > 0
         return len(self._doc_index_stores.values()) > 0

@@ -9,10 +9,11 @@ from llama_index.core.node_parser import (HierarchicalNodeParser,
                                           SentenceSplitter, get_leaf_nodes)
 from llama_index.core.schema import BaseNode, Document, MetadataMode, TextNode
 
+from doc_search.data_processing.data_loader import MultiLingualBaseReader
 from doc_search.data_processing.data_loader import factory as loader_factory
 from doc_search.data_processing.indexing import factory as indexer_factory
-from doc_search.llm import factory as llm_factory
 from doc_search.data_processing.parser import factory
+from doc_search.llm import factory as llm_factory
 from doc_search.settings import ParserConfig
 
 
@@ -20,6 +21,7 @@ class SimpleParser:
 
     parser_config: ParserConfig = ParserConfig()
     data_runtime: Path = Path("./data")
+    doc_loader: MultiLingualBaseReader | None = None
 
     def __init__(
         self,
@@ -32,10 +34,10 @@ class SimpleParser:
     def read_file(self, filename: Path, dirname: str):
         assert filename.is_file(), f"Input path {filename} is not a file !"
 
-        doc_loader = loader_factory.build(
+        self.doc_loader = loader_factory.build(
             name=self.parser_config.loader_name, file=filename, config=self.parser_config
         )
-        documents = doc_loader.load_data()
+        documents = self.doc_loader.load_data()
         index, storage_context = indexer_factory.build(
             name=self.parser_config.index_store_name,
             config=None,

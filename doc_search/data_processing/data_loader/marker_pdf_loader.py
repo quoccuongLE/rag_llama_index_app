@@ -1,4 +1,6 @@
 import copy
+import json
+from logging import warning
 from pathlib import Path
 from typing import List
 
@@ -8,11 +10,11 @@ from llama_index.core.schema import Document as LlamaIndexDocument
 from marker.models import load_all_models
 from tqdm import tqdm
 
-from .utils.marker_pdf import convert_single_pdf_no_images
 from doc_search.data_processing.data_loader import factory
 from doc_search.settings import LoaderConfig
-from .multilingual_base import MultiLingualBaseReader
 
+from .multilingual_base import MultiLingualBaseReader
+from .utils.marker_pdf import convert_single_pdf_no_images
 
 text_summary_template = PromptTemplate(
     "Document is below.\n"
@@ -60,6 +62,7 @@ class MarkerPDFReader(MultiLingualBaseReader):
         self.page_merge = page_merge
         self._model_list = load_all_models()
         self._chunk_full_text: str = ""
+        self._chunk_translated_full_text: str = ""
 
     def load_data(
         self,
@@ -81,27 +84,40 @@ class MarkerPDFReader(MultiLingualBaseReader):
         Returns:
             List[LlamaIndexDocument]: A list of LlamaIndexDocument objects.
         """
-        full_texts, out_meta = convert_single_pdf_no_images(
-            fname=file_path,
-            model_lst=self._model_list,
-            max_pages=self.max_pages,
-            langs=self.langs,
-            batch_multiplier=self.batch_multiplier, 
-            start_page=self.start_page,
-            page_merge=self.page_merge,
-        )
+        # full_texts, out_meta = convert_single_pdf_no_images(
+        #     fname=file_path,
+        #     model_lst=self._model_list,
+        #     max_pages=self.max_pages,
+        #     langs=self.langs,
+        #     batch_multiplier=self.batch_multiplier,
+        #     start_page=self.start_page,
+        #     page_merge=self.page_merge,
+        # )
+        with open("tmp/markdown_policy.json", "r") as f:
+            full_texts = json.load(f)
+
         if translate:
             translation = []
-            for text in full_texts:
-                new_text = self.translate_node_text(
-                    text=text, src_lang=src_language,
-                    tgt_lang=tgt_language
-                )  # src_lang not meant to be declared
+            for i, text in enumerate(full_texts):
+                if i > 50:
+                    warning("Too many elements. Stop translating at 150th !")
+                    break
+                print(f"[{i}/{len(full_texts)}]")
+                try:
+                    new_text = self.translate_node_text(
+                        text=text, src_lang=src_language,
+                        tgt_lang=tgt_language
+                    )  # src_lang not meant to be declared
+                except:
+                    warning("Not translating {i}th !")
+                    new_text = text
                 translation.append(new_text)
-            self._chunk_full_text = "".join(translation)
-        else:
-            self._chunk_full_text = "".join(full_texts)
-        
+            self._chunk_translated_full_text = "".join(
+                [x for x in translation if isinstance(x, str)]
+            )
+
+        self._chunk_full_text = "".join(full_texts)
+
         if not indexing:
             return
 
@@ -109,7 +125,7 @@ class MarkerPDFReader(MultiLingualBaseReader):
         extra_info = extra_info or {}
         for text in full_texts:
             _extra_info = copy.copy(extra_info)
-            _extra_info.update(out_meta)
+            # _extra_info.update(out_meta)
             if self.text_summarize:
                 llm = Settings.llm
                 prompt = text_summary_template.format(
@@ -122,10 +138,6 @@ class MarkerPDFReader(MultiLingualBaseReader):
                 index_documents.append(LlamaIndexDocument(text=text, extra_info=extra_info))
 
         return index_documents
-
-    def save_doc(self, filepath: Path):
-        with open(filepath, "w+", encoding='utf-8') as f:
-            f.write(self._chunk_full_text)
 
 
 @factory.register_builder("marker_pdf_reader")
