@@ -1,4 +1,4 @@
-# QA Semantic Document Search powered by LLM
+# Multilingual QA Semantic Document Search powered by LLM
 
 Unleash potential utilities of **L**arge **L**anguage **M**odels or **LLMs** (**ChatGPT**, **Google Gemini**, **Mistral**, etc.) with Llama Index.
 
