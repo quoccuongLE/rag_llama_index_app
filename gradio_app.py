@@ -323,7 +323,7 @@ class LocalChatbotUI:
     def _change_src_tgt_languages(self, src_lang: str, tgt_lang: str):
         return gr.update(value=tgt_lang), gr.update(value=src_lang)
 
-    def _preprocess(
+    def _preprocess_and_translate(
         self,
         document: str,
         src_lang: str,
@@ -332,6 +332,7 @@ class LocalChatbotUI:
     ):
         tgt_lang, _ = tuple(tgt_lang.split(" - ", 1))
         src_lang, _ = tuple(src_lang.split(" - ", 1))
+        file = Path(document)
         self._rag_engine._parser.read_file(
             filename=document,
             indexing=False,
@@ -339,21 +340,19 @@ class LocalChatbotUI:
             src_language=src_lang,
             tgt_language=tgt_lang,
         )
-        try:
-            # chunk_full_text = self._rag_engine._parser.doc_loader._chunk_full_text
-            # translated = self._rag_engine._translator.translate(
-            #     chunk_full_text, tgt_lang=tgt_lang, src_lang=src_lang
-            # )
-            # with open(export_file, "w+", encoding="utf-8") as f:
-            #     f.write(translated)
-            # self._rag_engine._parser.doc_loader.save_doc(export_file, translated_text=True)
-            self._rag_engine.parser.doc_loader.save_doc(
-                filepath=Path(export_file), translated_text=True
-            )
-        except:
-            raise NotImplementedError
+        md_file = (
+            Path(self._rag_engine._setting.md_preprocessed_dir) / f"{file.stem}.md"
+        )
+        self._rag_engine.parser.doc_loader.save_doc(
+            filepath=md_file, translated_text=False
+        )
+        self._rag_engine.parser.doc_loader.save_doc(
+            filepath=Path(export_file), translated_text=True
+        )
 
-        return gr.update(value=export_file, visible=True)
+        return gr.update(value=export_file, visible=True), gr.update(
+            value=md_file, visible=True
+        )
 
     def build(self):
         with gr.Blocks(theme="ParityError/Interstellar") as demo:
@@ -517,6 +516,16 @@ class LocalChatbotUI:
                             )
                             switch_1 = gr.Button(value="Switch ↔")
                         with gr.Row():
+                            md_documents = gr.Files(
+                                label="Preprocessed documents",
+                                value=[],
+                                file_types=[".md"],
+                                file_count="multiple",
+                                # height=250,
+                                interactive=True,
+                                visible=False,
+                            )
+                        with gr.Row():
                             input_doc = gr.File(
                                 label="Input File",
                                 file_count="single",
@@ -634,9 +643,9 @@ class LocalChatbotUI:
             #     outputs=[input_doc, upload_doc_btn_2],
             # )
             translate_button.click(
-                self._preprocess,
+                self._preprocess_and_translate,
                 inputs=[input_doc, src_language, tgt_language],
-                outputs=[output_doc],
+                outputs=[output_doc, md_documents],
             )
 
         return demo

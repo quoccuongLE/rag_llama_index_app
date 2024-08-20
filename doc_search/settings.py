@@ -143,6 +143,7 @@ class RAGSetting(ConfigParams):
     file_storage: str = Field(
         default="./data/doc_search/docs", description="Store for docs"
     )
+    md_preprocessed_dir: str = Field(default="./data/doc_search/markdown")
     llm: LLMSetting = Field(default_factory=LLMSetting)
     embed_model: EmbedModelSetting = Field(default_factory=EmbedModelSetting)
     query_engine: EngineConfig = Field(default_factory=QAEngineConfig)
