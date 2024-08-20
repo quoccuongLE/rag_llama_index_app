@@ -94,20 +94,6 @@ class LLMTranslator(Translator):
         try:
             json_string = _marshal_llm_to_json(output)
             json_obj = json.loads(json_string)
-            # try:
-            #     json_obj = json.loads(json_string)
-            # except json.decoder.JSONDecodeError as e:
-            #     # Look for the error position and try inserting a comma
-            #     error_pos = e.pos
-            #     if error_pos > 0 and json_string[error_pos - 1] in (']', '}', ':'):
-            #         fixed_string = json_string[:error_pos] + ',' + json_string[error_pos:]
-            #         try:
-            #             fixed_string = json.loads(fixed_string)
-            #             return fixed_string  # Fixed JSON
-            #         except json.decoder.JSONDecodeError:
-            #             pass  # Insertion of comma didn't work
-
-            #     return json_string  # Return original string if no fix found
             if not json_obj:
                 raise ValueError(f"Failed to convert output to JSON: {output!r}")
             return json_obj
@@ -121,7 +107,7 @@ class LLMTranslator(Translator):
             else:
                 raw_text = json_string.replace('json\n{\n', "").replace('"translated_text": ', '').strip()
             raw_text = raw_text.replace('"', '')
-            raw_text = raw_text.replace('}\n', '')
+            raw_text = raw_text.replace('}', '')
             raw_text = raw_text[2:]
             json_string = {"translated_text": f"{raw_text}"}
             return json_string

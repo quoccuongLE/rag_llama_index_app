@@ -30,14 +30,15 @@ class SimpleParser:
     ) -> None:
         self.data_runtime = data_runtime
         self.parser_config = parser_config
+        if self.parser_config.loader_name == "llama_parse":
+            self.doc_loader = loader_factory.build(
+                name=self.parser_config.loader_name, config=self.parser_config
+            )
 
     def read_file(self, filename: Path, dirname: str):
         assert filename.is_file(), f"Input path {filename} is not a file !"
 
-        self.doc_loader = loader_factory.build(
-            name=self.parser_config.loader_name, file=filename, config=self.parser_config
-        )
-        documents = self.doc_loader.load_data()
+        documents = self.doc_loader.load_data(file_path=filename)
         index, storage_context = indexer_factory.build(
             name=self.parser_config.index_store_name,
             config=None,
@@ -56,7 +57,6 @@ class LlamaParser(SimpleParser):
     def __init__(self, node_parser: NodeParser, **kwargs):
         super().__init__(**kwargs)
         self.node_parser = node_parser
-        self.doc_loader = None
 
     def read_file(
         self,
@@ -72,12 +72,6 @@ class LlamaParser(SimpleParser):
         assert filename.is_file(), f"Input path {filename} is not a file !"
         if not dirname:
             dirname = filename.name
-        if self.doc_loader is None:
-            self.doc_loader = loader_factory.build(
-                name=self.parser_config.loader_name,
-                file=filename,
-                config=self.parser_config.loader_config,
-            )
         index_documents = self.doc_loader.load_data(
             str(filename),
             translate=translate,

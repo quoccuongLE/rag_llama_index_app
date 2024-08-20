@@ -84,17 +84,17 @@ class MarkerPDFReader(MultiLingualBaseReader):
         Returns:
             List[LlamaIndexDocument]: A list of LlamaIndexDocument objects.
         """
-        # full_texts, out_meta = convert_single_pdf_no_images(
-        #     fname=file_path,
-        #     model_lst=self._model_list,
-        #     max_pages=self.max_pages,
-        #     langs=self.langs,
-        #     batch_multiplier=self.batch_multiplier,
-        #     start_page=self.start_page,
-        #     page_merge=self.page_merge,
-        # )
-        with open("tmp/markdown_policy.json", "r") as f:
-            full_texts = json.load(f)
+        full_texts, out_meta = convert_single_pdf_no_images(
+            fname=file_path,
+            model_lst=self._model_list,
+            max_pages=self.max_pages,
+            langs=self.langs,
+            batch_multiplier=self.batch_multiplier,
+            start_page=self.start_page,
+            page_merge=self.page_merge,
+        )
+        # with open("tmp/markdown_policy.json", "r") as f:
+        #     full_texts = json.load(f)
 
         if translate:
             translation = []
@@ -125,7 +125,7 @@ class MarkerPDFReader(MultiLingualBaseReader):
         extra_info = extra_info or {}
         for text in full_texts:
             _extra_info = copy.copy(extra_info)
-            # _extra_info.update(out_meta)
+            _extra_info.update(out_meta)
             if self.text_summarize:
                 llm = Settings.llm
                 prompt = text_summary_template.format(

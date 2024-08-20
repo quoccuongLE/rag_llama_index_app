@@ -1,10 +1,11 @@
 from pathlib import Path
+
 from llama_index.core import PromptTemplate, Settings
 from llama_index.core.readers.base import BaseReader
+from llama_index.core.schema import Document
 
-from doc_search.translator import Translator, Language
-from doc_search.translator import factory
 from doc_search.settings import TranslatorConfig
+from doc_search.translator import Language, Translator, factory
 
 
 class MultiLingualBaseReader(BaseReader):
@@ -35,6 +36,14 @@ class MultiLingualBaseReader(BaseReader):
                 config=translator_config,
                 tgt_language=self._tgt_language,
             )
+
+    def load_data(
+        self,
+        file_path: Path | str,
+        extra_info: dict | None = None,
+        **kwargs: any,
+    ) -> list[Document]:
+        pass
 
     @property
     def tgt_language(self) -> Language:
