@@ -99,7 +99,7 @@ class MarkerPDFReader(MultiLingualBaseReader):
         if translate:
             translation = []
             for i, text in enumerate(full_texts):
-                if i > 50:
+                if i > 150:
                     warning("Too many elements. Stop translating at 150th !")
                     break
                 print(f"[{i}/{len(full_texts)}]")
@@ -109,7 +109,7 @@ class MarkerPDFReader(MultiLingualBaseReader):
                         tgt_lang=tgt_language
                     )  # src_lang not meant to be declared
                 except:
-                    warning("Not translating {i}th !")
+                    warning("Not translating {i}th element!")
                     new_text = text
                 translation.append(new_text)
             self._chunk_translated_full_text = "".join(
