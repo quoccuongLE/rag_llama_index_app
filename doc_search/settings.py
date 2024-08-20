@@ -24,10 +24,11 @@ class ConfigParams(BaseModel, extra="allow"):
 
 class LLMSetting(ConfigParams):
     type: str = Field(default="ollama")
-    model: str = Field(default="llama3", description="LLM model used in RAG")
+    model: str = Field(default="llama3.1", description="LLM model used in RAG")
     system_prompt: str = Field(default=get_system_prompt(language="eng", is_rag_prompt=False))
     temperature: float = Field(default=0.5, description="The temperature to use for sampling.")
     request_timeout: float = Field(default=120.0, description="Timeout for query requesting to Ollama server")
+    context_window: int = Field(default=20480)
     host: str = Field(default="localhost")
     port: int = Field(default=11434)
 
@@ -132,6 +133,7 @@ class TranslatorConfig(ConfigParams):
     type: str = Field(default="llm_translator")
     max_length: int = Field(default=1024)
     hf_model_id: str = Field(default="facebook/nllb-200-distilled-600M")
+    llm: LLMSetting = Field(default_factory=LLMSetting)
 
 
 class RAGSetting(ConfigParams):

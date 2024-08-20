@@ -45,7 +45,7 @@ Pull/download models (LLMs) from [Ollama library](https://ollama.com/library).
 *(Note: we use 4-bit quantized models of inference efficiency*)
 
 ```bash
-for MODEL in llama3 gemma2 gemma2:27b # 4-bit quantized models
+for MODEL in llama3 llama3.1 gemma2 gemma2:27b # 4-bit quantized models
 do
     ollama pull $MODEL
 done

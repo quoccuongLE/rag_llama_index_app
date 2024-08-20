@@ -133,9 +133,7 @@ def build_base_translator(
 
 @dataclass
 class _TranslationService:
-    _translator: Translator = Translator(
-        tgt_language=Language(language_code="eng"), max_length=1024
-    )
+    _translator: Translator | None = None
 
     @property
     def translator(self) -> Translator:

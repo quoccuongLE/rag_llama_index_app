@@ -9,10 +9,11 @@ from llama_index.core.node_parser import (HierarchicalNodeParser,
                                           SentenceSplitter, get_leaf_nodes)
 from llama_index.core.schema import BaseNode, Document, MetadataMode, TextNode
 
+from doc_search.data_processing.data_loader import MultiLingualBaseReader
 from doc_search.data_processing.data_loader import factory as loader_factory
 from doc_search.data_processing.indexing import factory as indexer_factory
-from doc_search.llm import factory as llm_factory
 from doc_search.data_processing.parser import factory
+from doc_search.llm import factory as llm_factory
 from doc_search.settings import ParserConfig
 
 
@@ -20,6 +21,7 @@ class SimpleParser:
 
     parser_config: ParserConfig = ParserConfig()
     data_runtime: Path = Path("./data")
+    doc_loader: MultiLingualBaseReader | None = None
 
     def __init__(
         self,
@@ -28,14 +30,15 @@ class SimpleParser:
     ) -> None:
         self.data_runtime = data_runtime
         self.parser_config = parser_config
+        if self.parser_config.loader_name == "llama_parse":
+            self.doc_loader = loader_factory.build(
+                name=self.parser_config.loader_name, config=self.parser_config
+            )
 
     def read_file(self, filename: Path, dirname: str):
         assert filename.is_file(), f"Input path {filename} is not a file !"
 
-        doc_loader = loader_factory.build(
-            name=self.parser_config.loader_name, file=filename, config=self.parser_config
-        )
-        documents = doc_loader.load_data()
+        documents = self.doc_loader.load_data(file_path=filename)
         index, storage_context = indexer_factory.build(
             name=self.parser_config.index_store_name,
             config=None,
@@ -55,21 +58,36 @@ class LlamaParser(SimpleParser):
         super().__init__(**kwargs)
         self.node_parser = node_parser
 
-    def read_file(self, filename: Path, dirname: str):
+    def read_file(
+        self,
+        filename: Path | str,
+        dirname: str | None = None,
+        indexing: bool = True,
+        translate: bool = False,
+        src_language: str | None = None,
+        tgt_language: str | None = None,
+    ):
+        if isinstance(filename, str):
+            filename = Path(filename)
         assert filename.is_file(), f"Input path {filename} is not a file !"
-        doc_loader = loader_factory.build(
-            name=self.parser_config.loader_name,
-            file=filename,
-            config=self.parser_config.loader_config,
+        if not dirname:
+            dirname = filename.name
+        index_documents = self.doc_loader.load_data(
+            str(filename),
+            translate=translate,
+            src_language=src_language,
+            tgt_language=tgt_language,
         )
-        documents = doc_loader.load_data(str(filename))
-        # NOTE: This parser doesn't use pre-built indexer
-        nodes = self.node_parser.get_nodes_from_documents(documents)
-        base_nodes, objects = self.node_parser.get_nodes_and_objects(nodes)
+        if indexing:
+            # NOTE: This parser doesn't use pre-built indexer
+            nodes = self.node_parser.get_nodes_from_documents(index_documents)
+            base_nodes, objects = self.node_parser.get_nodes_and_objects(nodes)
 
-        recursive_index = VectorStoreIndex(nodes=base_nodes + objects)
-        recursive_index.storage_context.persist(persist_dir=self.data_runtime / dirname)
-        return recursive_index, recursive_index.storage_context
+            recursive_index = VectorStoreIndex(nodes=base_nodes + objects)
+            recursive_index.storage_context.persist(persist_dir=self.data_runtime / dirname)
+            return recursive_index, recursive_index.storage_context
+        else:
+            return None, None
 
 
 @factory.register_builder("simple_parser")

@@ -1,20 +1,20 @@
 import copy
+import json
+from logging import warning
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import List
 
-from fitz import Document as FitzDocument
 from llama_index.core import PromptTemplate, Settings
 from llama_index.core.readers.base import BaseReader
 from llama_index.core.schema import Document as LlamaIndexDocument
 from marker.models import load_all_models
-from marker.settings import settings
-from pymupdf4llm import IdentifyHeaders, to_markdown
 from tqdm import tqdm
 
-from .utils.marker_pdf import convert_single_pdf_no_images
 from doc_search.data_processing.data_loader import factory
 from doc_search.settings import LoaderConfig
 
+from .multilingual_base import MultiLingualBaseReader
+from .utils.marker_pdf import convert_single_pdf_no_images
 
 text_summary_template = PromptTemplate(
     "Document is below.\n"
@@ -28,7 +28,7 @@ text_summary_template = PromptTemplate(
 )
 
 
-class MarkerPDFReader(BaseReader):
+class MarkerPDFReader(MultiLingualBaseReader):
     """Read PDF files using Marker PDF library."""
 
     show_progress: bool = False
@@ -51,6 +51,7 @@ class MarkerPDFReader(BaseReader):
         page_merge: bool = False,
         show_progress: bool = False,
     ):
+        super().__init__()
         self.text_summarize = text_summarize
         self.parsing_instruction = parsing_instruction
         self.show_progress = show_progress
@@ -60,11 +61,17 @@ class MarkerPDFReader(BaseReader):
         self.batch_multiplier = batch_multiplier
         self.page_merge = page_merge
         self._model_list = load_all_models()
+        self._chunk_full_text: str = ""
+        self._chunk_translated_full_text: str = ""
 
     def load_data(
         self,
         file_path: Path | str,
         extra_info: dict | None = None,
+        translate: bool = False,
+        src_language: str | None = None,
+        tgt_language: str | None = None,
+        indexing: bool = True,
         **kwargs: any,
     ) -> List[LlamaIndexDocument]:
         """Loads list of documents from PDF file and also accepts extra information in dict format.
@@ -86,6 +93,34 @@ class MarkerPDFReader(BaseReader):
             start_page=self.start_page,
             page_merge=self.page_merge,
         )
+        # with open("tmp/markdown_policy.json", "r") as f:
+        #     full_texts = json.load(f)
+
+        if translate:
+            translation = []
+            for i, text in enumerate(full_texts):
+                if i > 50:
+                    warning("Too many elements. Stop translating at 150th !")
+                    break
+                print(f"[{i}/{len(full_texts)}]")
+                try:
+                    new_text = self.translate_node_text(
+                        text=text, src_lang=src_language,
+                        tgt_lang=tgt_language
+                    )  # src_lang not meant to be declared
+                except:
+                    warning("Not translating {i}th !")
+                    new_text = text
+                translation.append(new_text)
+            self._chunk_translated_full_text = "".join(
+                [x for x in translation if isinstance(x, str)]
+            )
+
+        self._chunk_full_text = "".join(full_texts)
+
+        if not indexing:
+            return
+
         index_documents = []
         extra_info = extra_info or {}
         for text in full_texts:
