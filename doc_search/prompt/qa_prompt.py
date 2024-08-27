@@ -99,3 +99,12 @@ qa_template = """
     \n------\n
     Answer:
 """
+
+summarization_template = (
+    "Your are an expert in the field of {expert_domain_str}."
+    "The following passage is an extract of from a scientific paper. You must"
+    " summarize it without using any prior knowledge."
+    "\n--------------------\n"
+    "{context_str}"
+    "\n--------------------\n"
+)

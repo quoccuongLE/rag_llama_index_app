@@ -23,7 +23,7 @@ from tqdm import tqdm
 
 from llama_index.core.chat_engine.types import StreamingAgentChatResponse
 
-from doc_search.prompt.qa_prompt import qa_template
+from doc_search.prompt.qa_prompt import qa_template, summarization_template
 from doc_search.query_engine import factory
 from doc_search.settings import (
     CitationEngineConfig,
@@ -40,6 +40,7 @@ class ChatMode(str, Enum):
     CHAT = "chat"
     QA = "QA"
     SEMANTIC_SEARCH = "semantic search"
+    SUMMARIZATION = "summarization"
 
 
 def empty_response_generator() -> Generator[str, None, None]:
@@ -119,11 +120,16 @@ class TranslatorContextChatEngine(ContextChatEngine):
     def stream_chat(
         self, message: str, chat_history: Optional[List[ChatMessage]] = None
     ) -> StreamingAgentChatResponse:
-        message += self._translator.translate(
-            sources=self._postfix_message + f"{self._tgt_language.english_name}",
-            src_lang="eng",
-            tgt_lang=self._tgt_language.language_code,
-        )
+        if (
+            self._tgt_language
+            and self._translate_node
+            and self._tgt_language.language_code != self._src_language.language_code
+        ):
+            message += self._translator.translate(
+                sources=self._postfix_message + f"{self._tgt_language.english_name}",
+                src_lang="eng",
+                tgt_lang=self._tgt_language.language_code,
+            )
         return super().stream_chat(message, chat_history)
 
     def _generate_context(self, message: str) -> str | list[NodeWithScore]:
@@ -162,6 +168,25 @@ class TranslatorContextChatEngine(ContextChatEngine):
             )
 
         return self._context_template.format(context_str=context_str), nodes
+
+
+class SummarizationChatEngine(TranslatorContextChatEngine):
+    _expert_domain_str: str = "Science"
+
+    def _generate_context(self, message: str) -> str | list[NodeWithScore]:
+        if (
+            self._tgt_language
+            and self._translate_node
+            and self._tgt_language.language_code != self._src_language.language_code
+        ):
+            text = self._translator.translate(
+                sources=message,
+                src_lang=self._src_language,
+                tgt_lang=self._tgt_language,
+            )
+        else:
+            text = message
+        return self._context_template.format(context_str=text, expert_domain_str=self._expert_domain_str), []
 
 
 class RawBaseSynthesizer(Refine):
@@ -259,6 +284,23 @@ def build_qa_query_engine(
         retriever=retriever,
         llm=Settings.llm,
         context_template=config.context_template or qa_template,
+        memory=ChatMemoryBuffer(token_limit=config.chat_token_limit),
+        node_postprocessors=postprocessors or [],
+    )
+
+
+@factory.register_builder("summarization")
+def build_summarization_engine(
+    config: SimpleChatEngineConfig, postprocessors: Optional[list] = None, **kwargs
+) -> SimpleChatEngine:
+
+    return SummarizationChatEngine(
+        prefix_messages=[
+            ChatMessage.from_str(content=config.prefix_messages, role="system")
+        ],
+        retriever=None,
+        llm=Settings.llm,
+        context_template=config.context_template or summarization_template,
         memory=ChatMemoryBuffer(token_limit=config.chat_token_limit),
         node_postprocessors=postprocessors or [],
     )

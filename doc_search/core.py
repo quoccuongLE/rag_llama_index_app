@@ -273,6 +273,13 @@ class DocRetrievalAugmentedGen:
             if self._chat_mode == ChatMode.QA:
                 self._query_engine.src_language = self._doc_language
                 self._query_engine.tgt_language = self._language
+        elif self._chat_mode == ChatMode.SUMMARIZATION:
+            self._query_engine = qengine_factory.build(
+                name=self._chat_mode.value,
+                config=self._setting.query_engine
+                )
+            self._query_engine.src_language = self._doc_language
+            self._query_engine.tgt_language = self._language
         else:
             self._query_engine = None
 
@@ -329,13 +336,26 @@ class DocRetrievalAugmentedGen:
     def query(
         self, mode: str, message: str, chatbot: List[List[str]]
     ) -> StreamingAgentChatResponse:
-        # TODO: Setup a system of synchronizing prompts while switching between languages
-        if self._query_engine is None:
-            return Response(
-                response="Please select a file you want to query information! Or you want to switch to chat mode ?"
-            )
-        if self._chat_mode == ChatMode.SEMANTIC_SEARCH:
-            return self._query_engine.query(message)
-        else:
+        if self._chat_mode == ChatMode.CHAT:
             history = self.get_history(chatbot)
             return self._query_engine.stream_chat(message, history)
+
+        elif self._chat_mode == ChatMode.SUMMARIZATION:
+            history = self.get_history(chatbot)
+            return self._query_engine.stream_chat(message, history)
+
+        elif self._chat_mode == ChatMode.QA:
+            if self._query_engine is None:
+                return Response(
+                    response="Please select a file you want to query information! Or you want to switch to chat mode ?"
+                )
+            return self._query_engine.stream_chat(message, [])
+
+        elif self._chat_mode == ChatMode.SEMANTIC_SEARCH:
+            return self._query_engine.query(message)
+
+        else:
+            return Response(
+                response="Unsupported chat mode! Please choose one of these "
+                "options: QA, semantic search, summarization, and chat."
+            )
