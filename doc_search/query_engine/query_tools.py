@@ -23,7 +23,11 @@ from tqdm import tqdm
 
 from llama_index.core.chat_engine.types import StreamingAgentChatResponse
 
-from doc_search.prompt.qa_prompt import qa_template, summarization_template
+from doc_search.prompt.qa_prompt import (
+    qa_template,
+    summarization_template,
+    job_skill_retrieval_template,
+)
 from doc_search.query_engine import factory
 from doc_search.settings import (
     CitationEngineConfig,
@@ -41,6 +45,7 @@ class ChatMode(str, Enum):
     QA = "QA"
     SEMANTIC_SEARCH = "semantic search"
     SUMMARIZATION = "summarization"
+    COVERLETTER_GEN = "cover letter gen"
 
 
 def empty_response_generator() -> Generator[str, None, None]:
@@ -187,6 +192,13 @@ class SummarizationChatEngine(TranslatorContextChatEngine):
         else:
             text = message
         return self._context_template.format(context_str=text, expert_domain_str=self._expert_domain_str), []
+
+
+class DocGenChatEngine(TranslatorContextChatEngine):
+    _expert_domain_str: str = "Tech"
+
+    def _generate_context(self, message: str) -> str | list[NodeWithScore]:
+        pass
 
 
 class RawBaseSynthesizer(Refine):

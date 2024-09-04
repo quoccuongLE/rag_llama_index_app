@@ -108,3 +108,13 @@ summarization_template = (
     "{context_str}"
     "\n--------------------\n"
 )
+
+job_skill_retrieval_template = (
+    "Your are an excellent recruiter in the domain of {expert_domain_str}."
+    "Your company is hiring for a position of {job_name}."
+    "The text below is the job description."
+    "\n--------------------\n"
+    "{context_str}"
+    "\n--------------------\n"
+    "Please give the most essential requirements for the ideal candidate."
+)
