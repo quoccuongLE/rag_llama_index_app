@@ -26,7 +26,6 @@ from llama_index.core.chat_engine.types import StreamingAgentChatResponse
 from doc_search.prompt.qa_prompt import (
     qa_template,
     summarization_template,
-    job_skill_retrieval_template,
 )
 from doc_search.query_engine import factory
 from doc_search.settings import (
@@ -194,13 +193,6 @@ class SummarizationChatEngine(TranslatorContextChatEngine):
         return self._context_template.format(context_str=text, expert_domain_str=self._expert_domain_str), []
 
 
-class DocGenChatEngine(TranslatorContextChatEngine):
-    _expert_domain_str: str = "Tech"
-
-    def _generate_context(self, message: str) -> str | list[NodeWithScore]:
-        pass
-
-
 class RawBaseSynthesizer(Refine):
     def __init__(self, topk: int = 5, sample_length: int = 300, **kwargs) -> None:
         self._topk = topk
@@ -326,19 +318,3 @@ def build_chat_query_engine(
         llm=Settings.llm,
         memory=ChatMemoryBuffer(token_limit=config.chat_token_limit),
     )
-
-
-# NOTE: Config builder
-@factory.register_config("semantic search")
-def build_semantic_search_engine_config():
-    return CitationEngineConfig(type="semantic search")
-
-
-@factory.register_config("QA")
-def build_qa_engine_config():
-    return QAEngineConfig(type="QA")
-
-
-@factory.register_config("chat")
-def build_chat_engine_config():
-    return SimpleChatEngineConfig(type="chat")

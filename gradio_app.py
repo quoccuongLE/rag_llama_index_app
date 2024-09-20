@@ -439,7 +439,7 @@ class LocalChatbotUI:
 
                         with gr.Row(variant=self._variant):
                             chat_mode = gr.Dropdown(
-                                choices=["QA", "chat", "semantic search", "summarization"],
+                                choices=["QA", "chat", "semantic search", "summarization", "cover letter gen"],
                                 value="QA",
                                 min_width=50,
                                 show_label=False,
