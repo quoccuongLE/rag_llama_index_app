@@ -29,7 +29,7 @@ class DocGenChatEngine(TranslatorContextChatEngine):
     _selection_template: str = ""
     _topk: int = 3
     _src_document: str = ""
-    _job_name: str = "Applied AI Engineer"
+    _job_name: str = "Post Doctoral position"
 
     def __init__(
         self,
