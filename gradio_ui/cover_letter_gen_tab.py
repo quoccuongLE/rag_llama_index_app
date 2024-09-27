@@ -158,7 +158,7 @@ class CoverLetterGenTab(QATab):
                 with gr.Row(variant=self._variant):
                     message = gr.MultimodalTextbox(
                         value=DefaultElement.DEFAULT_MESSAGE,
-                        placeholder="Enter you message:",
+                        placeholder="Paste the job description here:",
                         show_label=False,
                         scale=6,
                         lines=1,
