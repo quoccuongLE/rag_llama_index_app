@@ -25,11 +25,11 @@ from .base import TranslatorContextChatEngine
 
 
 class DocGenChatEngine(TranslatorContextChatEngine):
-    _expert_domain_str: str = "Tech"
+    expert_domain_str: str = "Tech"
     _selection_template: str = ""
     _topk: int = 3
     _src_document: str = ""
-    _job_name: str = "Data Scientist (Artifical Intelligence & Computer Vision)"
+    job_name: str = ""
 
     def __init__(
         self,
@@ -43,6 +43,7 @@ class DocGenChatEngine(TranslatorContextChatEngine):
         node_postprocessors: List[BaseNodePostprocessor] | None = None,
         context_template: str | None = None,
         callback_manager: CallbackManager | None = None,
+        job_name: str = "Data Scientist (Artifical Intelligence & Computer Vision)",
     ) -> None:
         super().__init__(
             retriever,
@@ -60,6 +61,7 @@ class DocGenChatEngine(TranslatorContextChatEngine):
             self._src_document = src_document
         self._topk = topk
         self._selection_template = PromptTemplate(selection_template)
+        self.job_name = job_name
 
     def set_source_document(self, document: str):
         self._src_document = document
@@ -131,8 +133,8 @@ class DocGenChatEngine(TranslatorContextChatEngine):
 
         return (
             self._context_template.format(
-                expert_domain_str=self._expert_domain_str,
-                job_name=self._job_name,
+                expert_domain_str=self.expert_domain_str,
+                job_name=self.job_name,
                 context_str=text,
                 qualifications_str="".join(bio),
             ),
@@ -153,6 +155,5 @@ def build_doc_gen_1(
         selection_template=multi_select_item_in_resume,
         topk=config.similarity_top_k,
         memory=ChatMemoryBuffer(token_limit=config.chat_token_limit),
-        src_document=Path("tmp/my_portfolio.md"),
         context_template=cover_letter_template_given_candidate_bio,
     )

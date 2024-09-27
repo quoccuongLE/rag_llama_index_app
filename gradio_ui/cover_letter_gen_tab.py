@@ -1,93 +1,85 @@
 import os
+from pathlib import Path
 import shutil
+import sys
+from doc_search.core import DocRetrievalAugmentedGen
+from doc_search.query_engine.base import ChatMode
+from .qa_tab import QATab
 import gradio as gr
 
-from doc_search import DocRetrievalAugmentedGen
-from doc_search.logger import Logger
-from doc_search.query_engine.base import ChatMode
 from doc_search.translator import get_available_languages
-from .defaults import DefaultElement, LLMResponse
-from .chat_tab import ChatTab
+from .defaults import DefaultElement
 
 
-class QATab(ChatTab):
-    _llm_response: LLMResponse = LLMResponse()
-    _variant: str = "panel"
-    chat_mode: str = "QA"
+class CoverLetterGenTab(QATab):
+    _resume_dict: dict[str, str] = {
+        "my_portfolio.md": Path(
+            "./data/cover_letter_gen/docs/my_portfolio.md"
+        )
+    }
 
     def __init__(
         self,
         rag_engine: DocRetrievalAugmentedGen,
         chat_mode: str | None = None,
         avatar_images: list[str] = ["./assets/user.png", "./assets/bot.png"],
-        data_dir: str = "data/doc_search/docs",
+        data_dir: str = "data/cover_letter_gen/docs",
         logfile: str = "logging.log",
     ) -> None:
-        super().__init__(rag_engine, chat_mode, avatar_images, logfile)
-        self._data_dir = os.path.join(os.getcwd(), data_dir)
-
-    def _change_doc_language(self, language: str):
-        self.rag_engine.doc_language = language
-
-    def _change_embed_model(self, model: str):
-        if model not in [None, ""]:
-            self.rag_engine.embed_model = model
-            self.rag_engine.reset_engine()
-            gr.Info(f"Change embed model to {model}!")
-        return DefaultElement.DEFAULT_STATUS
-
-    def _upload_document(self, document: list[str], list_files: tuple[list[str], dict]):
-        if document in [None, []]:
-            if isinstance(list_files, list):
-                return (list_files, DefaultElement.DEFAULT_DOCUMENT)
-            else:
-                if list_files.get("files", None):
-                    return list_files.get("files")
-                return document
-        else:
-            if isinstance(list_files, list):
-                return (document + list_files, DefaultElement.DEFAULT_DOCUMENT)
-            else:
-                if list_files.get("files", None):
-                    return document + list_files.get("files")
-                return document
-
-    def _reset_document(self):
-        # self.rag_engine.reset_documents()
-        gr.Info("Reset all documents!")
-        return (
-            DefaultElement.DEFAULT_DOCUMENT,
-            gr.update(visible=False),
-            gr.update(visible=False),
+        super().__init__(rag_engine, chat_mode, avatar_images, data_dir, logfile)
+        self.rag_engine.set_chat_mode(
+            chat_mode=ChatMode.COVERLETTER_GEN, chat_config=dict(type=self.chat_mode)
         )
-
-    def _show_document_btn(self, document: list[str]):
-        visible = False if document in [None, []] else True
-        return (gr.update(visible=visible), gr.update(visible=visible))
-
-    def _update_file_list(self):
-        return gr.Dropdown(choices=self.rag_engine._files_registry)
-
-    def _change_selected_file(self, filename: str):
-        self.rag_engine._query_engine_name = filename
-        self.rag_engine.set_chat_mode()
+        self._change_selected_file("my_portfolio.md")
 
     def _processing_document(
         self, document: list[str], progress=gr.Progress(track_tqdm=False)
     ):
         document = document or []
         if self._host == "127.0.0.1":
-            input_files = []
             for file_path in document:
                 dest = os.path.join(self._data_dir, file_path.split("/")[-1])
                 shutil.move(src=file_path, dst=dest)
-                input_files.append(dest)
-            self.rag_engine.store_nodes(input_files=input_files)
-        else:
-            self.rag_engine.store_nodes(input_files=document)
-        self.rag_engine.set_chat_mode()
+                file_0 = Path(dest)
+                self._resume_dict.update({file_0.name: file_0})
+
+        self.rag_engine.set_chat_mode(
+            chat_mode=ChatMode.COVERLETTER_GEN, chat_config=dict(type=self.chat_mode)
+        )
         gr.Info("Processing Completed!")
         return DefaultElement.COMPLETED_STATUS
+
+    def _update_file_list(self):
+        return gr.Dropdown(choices=list(self._resume_dict))
+
+    def _change_selected_file(self, filename: str):
+        with open(self._resume_dict[filename], "r", encoding="utf-8") as f:
+            document = f.read()
+        self.rag_engine._query_engine.set_source_document(document)
+
+    def check_and_update_chat_mode(self, topk: int = 3, job_name: str = ""):
+        self.rag_engine._query_engine._topk = topk
+        self.rag_engine._query_engine.job_name = job_name
+
+    def _get_respone(
+        self,
+        message: dict[str, str],
+        chatbot: list[list[str, str]],
+        progress=gr.Progress(track_tqdm=False),
+    ):
+        if message["text"] in [None, ""]:
+            for m in self._llm_response.empty_message():
+                yield m
+        else:
+            console = sys.stdout
+            sys.stdout = self._logger
+            response = self.rag_engine.query(self.chat_mode, message["text"], chatbot)
+            # Yield response
+            for m in self._llm_response.stream_response(
+                message["text"], chatbot, response
+            ):
+                yield m
+            sys.stdout = console
 
     def create_ui(self):
         with gr.Row(variant=self._variant, equal_height=False):
@@ -128,8 +120,8 @@ class QATab(ChatTab):
                     )
                     file_list = gr.Dropdown(
                         label="Choose file:",
-                        choices=list(self.rag_engine._files_registry),
-                        value=None,
+                        choices=list(self._resume_dict.keys()),
+                        value="my_portfolio.md",
                         interactive=True,
                         allow_custom_value=True,
                     )
@@ -144,9 +136,9 @@ class QATab(ChatTab):
                     )
                     with gr.Row():
                         upload_doc_btn = gr.UploadButton(
-                            label="Upload",
+                            label="Upload your portfolio",
                             value=[],
-                            file_types=[".txt", ".pdf", ".csv"],
+                            file_types=[".txt", ".md"],
                             file_count="multiple",
                             min_width=20,
                             visible=False,
@@ -179,7 +171,8 @@ class QATab(ChatTab):
                         step=1,
                         show_label=False,
                     )
-                    nb_extract_char = gr.Number(value=300, show_label=False)
+                    # nb_extract_char = gr.Number(value=300, show_label=False)
+                    job_name = gr.Text(show_label="Job name", value="Data Scientist")
                     search_update_btn = gr.Button(value="Update", min_width=10)
                 with gr.Row(variant=self._variant):
                     ui_btn = gr.Button(
@@ -225,13 +218,5 @@ class QATab(ChatTab):
         )
         file_list.change(self._change_selected_file, inputs=[file_list])
         search_update_btn.click(
-            self.check_and_update_chat_mode, inputs=[top_k, nb_extract_char]
-        )
-        upload_doc_btn.upload(
-            self._upload_document,
-            inputs=[documents, upload_doc_btn],
-            outputs=[documents, upload_doc_btn],
-        )
-        reset_doc_btn.click(
-            self._reset_document, outputs=[documents, upload_doc_btn, reset_doc_btn]
+            self.check_and_update_chat_mode, inputs=[top_k, job_name]
         )

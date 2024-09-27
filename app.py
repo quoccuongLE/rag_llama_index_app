@@ -1,7 +1,7 @@
 import gradio as gr
 
 from doc_search import DocRetrievalAugmentedGen
-from gradio_ui import ChatTab, QATab, SettingTab, TranslatorTab
+from gradio_ui import ChatTab, QATab, SettingTab, TranslatorTab, CoverLetterGenTab
 
 import fire
 
@@ -32,7 +32,7 @@ def main(
             with gr.TabItem("Summarization"):
                 ChatTab(rag_engine=rag_engine, chat_mode="summarization")
             with gr.TabItem("Cover letter generation"):
-                ChatTab(rag_engine=rag_engine, chat_mode="cover letter gen")
+                CoverLetterGenTab(rag_engine=rag_engine, chat_mode="cover letter gen")
             with gr.TabItem("Settings"):
                 SettingTab(rag_engine=rag_engine)
             with gr.TabItem("Translation"):

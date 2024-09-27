@@ -3,6 +3,7 @@ from .chat_tab import ChatTab
 from .qa_tab import QATab
 from .setting_tab import SettingTab
 from .translator_tab import TranslatorTab
+from .cover_letter_gen_tab import CoverLetterGenTab
 
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "SettingTab",
     "QATab",
     "TranslatorTab",
+    "CoverLetterGenTab",
 ]

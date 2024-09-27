@@ -4,12 +4,14 @@ import gradio as gr
 
 from doc_search import DocRetrievalAugmentedGen
 from doc_search.logger import Logger
+from doc_search.query_engine.base import ChatMode
 from doc_search.translator import get_available_languages
 from .defaults import DefaultElement, LLMResponse
 
 
 class ChatTab:
     _llm_response: LLMResponse = LLMResponse()
+    _host: str = "127.0.0.1"
     _variant: str = "panel"
     chat_mode: str = "chat"
 
