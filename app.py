@@ -1,27 +1,22 @@
-import os
-from pathlib import Path
-import shutil
-import sys
-import time
-import yaml
 import gradio as gr
-from dataclasses import dataclass
-from typing import ClassVar, Dict, List, Tuple
-from llama_index.core.chat_engine.types import StreamingAgentChatResponse
 
 from doc_search import DocRetrievalAugmentedGen
-from doc_search.logger import Logger
-from doc_search.translator import get_available_languages
-from gradio_ui import ChatTab, DefaultElement, QATab
+from gradio_ui import ChatTab, QATab, SettingTab, TranslatorTab
 
 import fire
 
 
-def main(config: str):
+def main(
+    config: str,
+    host: str = "127.0.0.1",
+    share: bool = False,
+    debug: bool = False,
+    show_api: bool = False,
+):
     rag_engine = DocRetrievalAugmentedGen(setting=config)
     title = "Multilingual QA semantic search powered by LLM"
     DESCRIPTION = """
-    #### This is an official demo for Multilingual QA semantic search engine. \n
+    # This is an official demo for Multilingual QA semantic search engine. \n
     """
     with gr.Blocks(
         theme="ParityError/Interstellar", analytics_enabled=False, title=title
@@ -32,15 +27,17 @@ def main(config: str):
                 ChatTab(rag_engine=rag_engine)
             with gr.TabItem("QA"):
                 QATab(rag_engine=rag_engine)
-            # with gr.TabItem("Summarization"):
-            #     ChatTab(rag_engine=rag_engine)
-            # with gr.TabItem("Semantic search"):
-            #     pass
-            # with gr.TabItem("Setting"):
-            #     pass
-            # with gr.TabItem("Translation"):
-            #     pass
-    demo.queue().launch(share=False)
+            with gr.TabItem("Summarization"):
+                ChatTab(rag_engine=rag_engine, chat_mode="summarization")
+            with gr.TabItem("Semantic search"):
+                QATab(rag_engine=rag_engine, chat_mode="semantic search")
+            with gr.TabItem("Cover letter generation"):
+                ChatTab(rag_engine=rag_engine, chat_mode="cover letter gen")
+            with gr.TabItem("Setting"):
+                SettingTab(rag_engine=rag_engine)
+            with gr.TabItem("Translation"):
+                TranslatorTab(rag_engine=rag_engine)
+    demo.queue().launch(share=share, server_name=host, debug=debug, show_api=show_api)
 
 
 if __name__ == "__main__":

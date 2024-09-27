@@ -4,7 +4,6 @@ import gradio as gr
 
 from doc_search import DocRetrievalAugmentedGen
 from doc_search.logger import Logger
-from doc_search.query_engine.base import ChatMode
 from doc_search.translator import get_available_languages
 from .defaults import DefaultElement, LLMResponse
 
@@ -12,14 +11,17 @@ from .defaults import DefaultElement, LLMResponse
 class ChatTab:
     _llm_response: LLMResponse = LLMResponse()
     _variant: str = "panel"
-    _chat_mode: str = "chat"
+    chat_mode: str = "chat"
 
     def __init__(
         self,
         rag_engine: DocRetrievalAugmentedGen,
+        chat_mode: str | None = None,
         avatar_images: list[str] = ["./assets/user.png", "./assets/bot.png"],
         logfile: str = "logging.log"
     ) -> None:
+        if chat_mode:
+            self.chat_mode = chat_mode
         self._logger = Logger(logfile)
         self._logger.reset_logs()
         self._avatar_images = [
@@ -30,16 +32,16 @@ class ChatTab:
         self.check_and_update_chat_mode()
         self.create_ui()
 
-    def check_and_update_chat_mode(self, topk: int=-1, nb_extract_char: int=-1):
-        if self._chat_mode == self.rag_engine._chat_mode:
+    def check_and_update_chat_mode(self, topk: int = -1, nb_extract_char: int = -1):
+        if self.chat_mode == self.rag_engine._chat_mode:
             return
-        chat_config = dict(type=self._chat_mode)
-        if self._chat_mode == "semantic search":
+        chat_config = dict(type=self.chat_mode)
+        if self.chat_mode == "semantic search":
             chat_config.update(
                 dict(synthesizer=dict(topk=topk, sample_length=nb_extract_char))
             )
 
-        self.rag_engine.set_chat_mode(chat_mode=self._chat_mode, chat_config=chat_config)
+        self.rag_engine.set_chat_mode(chat_mode=self.chat_mode, chat_config=chat_config)
 
     def _clear_chat(self) -> tuple[str]:
         self.rag_engine.clear_conversation()
@@ -69,7 +71,7 @@ class ChatTab:
         else:
             console = sys.stdout
             sys.stdout = self._logger
-            response = self.rag_engine.query(self._chat_mode, message["text"], chatbot)
+            response = self.rag_engine.query(self.chat_mode, message["text"], chatbot)
             # Yield response
             for m in self._llm_response.stream_response(
                 message["text"], chatbot, response

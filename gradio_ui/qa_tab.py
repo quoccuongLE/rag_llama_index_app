@@ -1,6 +1,5 @@
 import os
 import shutil
-import sys
 import gradio as gr
 
 from doc_search import DocRetrievalAugmentedGen
@@ -14,7 +13,7 @@ from .chat_tab import ChatTab
 class QATab(ChatTab):
     _llm_response: LLMResponse = LLMResponse()
     _variant: str = "panel"
-    _chat_mode: str = "QA"
+    chat_mode: str = "QA"
 
     def _change_doc_language(self, language: str):
         self.rag_engine.doc_language = language
@@ -169,15 +168,10 @@ class QATab(ChatTab):
                         maximum=30,
                         value=5,
                         step=1,
-                        visible=False,
                         show_label=False,
                     )
-                    nb_extract_char = gr.Number(
-                        value=300, visible=False, show_label=False
-                    )
-                    search_update_btn = gr.Button(
-                        value="Update", min_width=10, visible=False
-                    )
+                    nb_extract_char = gr.Number(value=300, show_label=False)
+                    search_update_btn = gr.Button(value="Update", min_width=10)
                 with gr.Row(variant=self._variant):
                     ui_btn = gr.Button(
                         value="Hide/Show Setting",
@@ -221,3 +215,6 @@ class QATab(ChatTab):
             self._update_file_list, outputs=[file_list]
         )
         file_list.change(self._change_selected_file, inputs=[file_list])
+        search_update_btn.click(
+            self.check_and_update_chat_mode, inputs=[top_k, nb_extract_char]
+        )
