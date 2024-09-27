@@ -27,13 +27,13 @@ def main(
                 ChatTab(rag_engine=rag_engine)
             with gr.TabItem("QA"):
                 QATab(rag_engine=rag_engine)
-            with gr.TabItem("Summarization"):
-                ChatTab(rag_engine=rag_engine, chat_mode="summarization")
             with gr.TabItem("Semantic search"):
                 QATab(rag_engine=rag_engine, chat_mode="semantic search")
+            with gr.TabItem("Summarization"):
+                ChatTab(rag_engine=rag_engine, chat_mode="summarization")
             with gr.TabItem("Cover letter generation"):
                 ChatTab(rag_engine=rag_engine, chat_mode="cover letter gen")
-            with gr.TabItem("Setting"):
+            with gr.TabItem("Settings"):
                 SettingTab(rag_engine=rag_engine)
             with gr.TabItem("Translation"):
                 TranslatorTab(rag_engine=rag_engine)

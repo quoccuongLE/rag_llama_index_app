@@ -96,7 +96,7 @@ class ChatTab:
         return (label, gr.update(visible=state), state)
 
     def _reset_chat(self) -> tuple[str]:
-        self._rag_engine.reset_conversation()
+        self.rag_engine.reset_conversation()
         gr.Info("Reset chat!")
         return (
             DefaultElement.DEFAULT_MESSAGE,
