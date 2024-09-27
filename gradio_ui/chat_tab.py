@@ -10,6 +10,9 @@ from .defaults import DefaultElement, LLMResponse
 
 
 class ChatTab:
+    _llm_response: LLMResponse = LLMResponse()
+    _variant: str = "panel"
+    _chat_mode: str = "chat"
 
     def __init__(
         self,
@@ -24,20 +27,19 @@ class ChatTab:
         ]
         self.sidebar_state = gr.State(True)
         self.rag_engine = rag_engine
-        self.change_chat_mode(chat_mode="chat", topk=-1, nb_extract_char=-1)
-        self._variant = "panel"
-        self._llm_response = LLMResponse()
+        self.check_and_update_chat_mode()
         self.create_ui()
 
-    def change_chat_mode(self, chat_mode: str, topk: int, nb_extract_char: int):
-        chat_config = dict(type=chat_mode)
-        if chat_mode == "semantic search":
+    def check_and_update_chat_mode(self, topk: int=-1, nb_extract_char: int=-1):
+        if self._chat_mode == self.rag_engine._chat_mode:
+            return
+        chat_config = dict(type=self._chat_mode)
+        if self._chat_mode == "semantic search":
             chat_config.update(
                 dict(synthesizer=dict(topk=topk, sample_length=nb_extract_char))
             )
 
-        self.rag_engine.set_chat_mode(chat_mode=chat_mode, chat_config=chat_config)
-        gr.Info(f"Change chat mode to {chat_mode}")
+        self.rag_engine.set_chat_mode(chat_mode=self._chat_mode, chat_config=chat_config)
 
     def _clear_chat(self) -> tuple[str]:
         self.rag_engine.clear_conversation()
@@ -60,6 +62,7 @@ class ChatTab:
         chatbot: list[list[str, str]],
         progress=gr.Progress(track_tqdm=False),
     ):
+        self.check_and_update_chat_mode()
         if message["text"] in [None, ""]:
             for m in self._llm_response.empty_message():
                 yield m

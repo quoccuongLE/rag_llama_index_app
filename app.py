@@ -12,7 +12,7 @@ from llama_index.core.chat_engine.types import StreamingAgentChatResponse
 from doc_search import DocRetrievalAugmentedGen
 from doc_search.logger import Logger
 from doc_search.translator import get_available_languages
-from gradio_ui import ChatTab, DefaultElement
+from gradio_ui import ChatTab, DefaultElement, QATab
 
 import fire
 
@@ -28,18 +28,17 @@ def main(config: str):
     ) as demo:
         gr.Markdown(DESCRIPTION)
         with gr.Tabs("Interface"):
-            sidebar_state = gr.State(True)
             with gr.TabItem("Chat"):
                 ChatTab(rag_engine=rag_engine)
-            # with gr.TabItem("QA"):
-            #     QATab()
+            with gr.TabItem("QA"):
+                QATab(rag_engine=rag_engine)
             # with gr.TabItem("Summarization"):
-            #     SummarizationTab()
+            #     ChatTab(rag_engine=rag_engine)
+            # with gr.TabItem("Semantic search"):
+            #     pass
             # with gr.TabItem("Setting"):
             #     pass
             # with gr.TabItem("Translation"):
-            #     pass
-            # with gr.TabItem("Semantic search"):
             #     pass
     demo.queue().launch(share=False)
 
