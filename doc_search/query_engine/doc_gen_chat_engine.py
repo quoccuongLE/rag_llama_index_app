@@ -29,7 +29,7 @@ class DocGenChatEngine(TranslatorContextChatEngine):
     _selection_template: str = ""
     _topk: int = 3
     _src_document: str = ""
-    _job_name: str = "Post Doctoral position"
+    _job_name: str = "Data Scientist (Artifical Intelligence & Computer Vision)"
 
     def __init__(
         self,
@@ -151,6 +151,7 @@ def build_doc_gen_1(
         llm=Settings.llm,
         prefix_messages="",
         selection_template=multi_select_item_in_resume,
+        topk=config.similarity_top_k,
         memory=ChatMemoryBuffer(token_limit=config.chat_token_limit),
         src_document=Path("tmp/my_portfolio.md"),
         context_template=cover_letter_template_given_candidate_bio,
