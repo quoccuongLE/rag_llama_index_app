@@ -23,7 +23,10 @@ from tqdm import tqdm
 
 from llama_index.core.chat_engine.types import StreamingAgentChatResponse
 
-from doc_search.prompt.qa_prompt import qa_template, summarization_template
+from doc_search.prompt.qa_prompt import (
+    qa_template,
+    summarization_template,
+)
 from doc_search.query_engine import factory
 from doc_search.settings import (
     CitationEngineConfig,
@@ -41,6 +44,7 @@ class ChatMode(str, Enum):
     QA = "QA"
     SEMANTIC_SEARCH = "semantic search"
     SUMMARIZATION = "summarization"
+    COVERLETTER_GEN = "cover letter gen"
 
 
 def empty_response_generator() -> Generator[str, None, None]:
@@ -314,19 +318,3 @@ def build_chat_query_engine(
         llm=Settings.llm,
         memory=ChatMemoryBuffer(token_limit=config.chat_token_limit),
     )
-
-
-# NOTE: Config builder
-@factory.register_config("semantic search")
-def build_semantic_search_engine_config():
-    return CitationEngineConfig(type="semantic search")
-
-
-@factory.register_config("QA")
-def build_qa_engine_config():
-    return QAEngineConfig(type="QA")
-
-
-@factory.register_config("chat")
-def build_chat_engine_config():
-    return SimpleChatEngineConfig(type="chat")

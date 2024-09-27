@@ -20,7 +20,7 @@ from .llm import factory as llm_factory
 from .prompt import get_system_prompt
 from .query_engine import factory as qengine_factory
 from .translator import factory as translator_factory
-from .query_engine.query_tools import ChatMode
+from .query_engine.base import ChatMode
 from .settings import RAGSetting
 from .translator import TranslationService, Translator
 
@@ -273,7 +273,7 @@ class DocRetrievalAugmentedGen:
             if self._chat_mode == ChatMode.QA:
                 self._query_engine.src_language = self._doc_language
                 self._query_engine.tgt_language = self._language
-        elif self._chat_mode == ChatMode.SUMMARIZATION:
+        elif self._chat_mode in [ChatMode.SUMMARIZATION, ChatMode.COVERLETTER_GEN]:
             self._query_engine = qengine_factory.build(
                 name=self._chat_mode.value,
                 config=self._setting.query_engine
@@ -353,6 +353,9 @@ class DocRetrievalAugmentedGen:
 
         elif self._chat_mode == ChatMode.SEMANTIC_SEARCH:
             return self._query_engine.query(message)
+
+        elif self._chat_mode == ChatMode.COVERLETTER_GEN:
+            return self._query_engine.stream_chat(message, [])
 
         else:
             return Response(

@@ -108,3 +108,41 @@ summarization_template = (
     "{context_str}"
     "\n--------------------\n"
 )
+
+job_skill_retrieval_template = (
+    "Your are an excellent recruiter in the domain of {expert_domain_str}."
+    "Your company is hiring for a position of {job_name}."
+    "The text below is the job description."
+    "\n--------------------\n"
+    "{context_str}"
+    "\n--------------------\n"
+    "Please give the most essential requirements for the ideal candidate."
+)
+
+
+cover_letter_template_given_candidate_bio = (
+    "Given some relevant information of a candidate listed below:"
+    "\n--------------------\n"
+    "{qualifications_str}"
+    "\n--------------------\n"
+    "Write a cover letter for a position of {job_name} to impress the hiring manager. "
+    "Use only skills he has. Do not mention skills or experiences that he does not have. The job description is detailed below:"
+    "\n--------------------\n"
+    "{context_str}"
+    "\n--------------------\n"
+)
+
+# multiple select
+multi_select_item_in_resume = (
+    "A resumé of a candidate if given below in Markdown format.\n"
+    "---------------------\n"
+    "{resume}"
+    "\n---------------------\n"
+    "Using only the choices above and not prior knowledge, return the top choices "
+    "of the most relevant qualifications and experiences from his résumé."
+    "(no more than {max_outputs}, mention also where he works to earn those experiences in output) "
+    "for the job description below:\n"
+    "---------------------\n"
+    "{job_description}"
+    "---------------------\n"
+)
