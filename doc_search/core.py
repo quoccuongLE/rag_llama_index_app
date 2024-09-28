@@ -27,6 +27,12 @@ from .translator import TranslationService, Translator
 
 _OPENAI_MODELS = ["openai/gpt-4", "openai/gpt-4o", "openai/gpt-3.5-turbo-16k"]
 
+_AZURE_MODELS = [
+    "azure/meta-llama-3.1-8b-instruct",
+    "azure/meta-llama-3.1-70b-instruct",
+    "azure/gpt-4o",
+]
+
 _EMBED_MODELS = [
     "ollama/mxbai-embed-large",  # (Recommended for short context (512 max) d = 1024)
     "ollama/nomic-embed-text",  # (Recommended for long context (8192 max) d = 768)
@@ -88,7 +94,11 @@ class DocRetrievalAugmentedGen:
         ollama_list = [
             "ollama/" + x["name"].replace(":latest", "") for x in info_dict["models"]
         ]
-        return [x for x in ollama_list if x not in _EMBED_MODELS] + _OPENAI_MODELS
+        return (
+            [x for x in ollama_list if x not in _EMBED_MODELS]
+            + _OPENAI_MODELS
+            + _AZURE_MODELS
+        )
 
     @property
     def default_model(self) -> str:

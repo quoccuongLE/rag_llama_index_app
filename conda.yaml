@@ -30,9 +30,10 @@ dependencies:
   - pip:
     - fire
     - openai
-    - llama-index==0.10.61
+    - llama-index==0.11.14
     - llama-index-llms-ollama
     - llama-index-embeddings-ollama
+    - llama-index-llms-azure-inference
     - llama-index-embeddings-huggingface
     - llama-index-vector-stores-milvus
     - InstructorEmbedding
