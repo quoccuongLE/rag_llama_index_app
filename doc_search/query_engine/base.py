@@ -3,13 +3,13 @@ from typing import Any, Generator, List, Optional, Sequence
 
 from llama_index.core import StorageContext, VectorStoreIndex
 from llama_index.core.base.base_retriever import BaseRetriever
-from llama_index.core.base.response.schema import (
-    RESPONSE_TYPE,
-    Response,
-    StreamingResponse,
-)
-from llama_index.core.callbacks import CallbackManager
+from llama_index.core.base.llms.types import ChatMessage, MessageRole
+from llama_index.core.base.response.schema import (RESPONSE_TYPE, Response,
+                                                   StreamingResponse)
+from llama_index.core.callbacks import CallbackManager, trace_method
 from llama_index.core.chat_engine import ContextChatEngine, SimpleChatEngine
+from llama_index.core.chat_engine.types import (StreamingAgentChatResponse,
+                                                ToolOutput)
 from llama_index.core.llms import ChatMessage
 from llama_index.core.llms.llm import LLM
 from llama_index.core.memory import BaseMemory, ChatMemoryBuffer
@@ -17,23 +17,15 @@ from llama_index.core.postprocessor.types import BaseNodePostprocessor
 from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.core.response_synthesizers import Refine
 from llama_index.core.retrievers import AutoMergingRetriever
-from llama_index.core.schema import MetadataMode, NodeWithScore, QueryBundle, QueryType
+from llama_index.core.schema import (MetadataMode, NodeWithScore, QueryBundle,
+                                     QueryType)
 from llama_index.core.settings import Settings
+from llama_index.core.types import Thread
 from tqdm import tqdm
 
-from llama_index.core.chat_engine.types import StreamingAgentChatResponse
-
-from doc_search.prompt.qa_prompt import (
-    qa_template,
-    summarization_template,
-)
+from doc_search.prompt.qa_prompt import qa_template, summarization_template
 from doc_search.query_engine import factory
-from doc_search.settings import (
-    CitationEngineConfig,
-    EngineConfig,
-    QAEngineConfig,
-    SimpleChatEngineConfig,
-)
+from doc_search.settings import EngineConfig, SimpleChatEngineConfig
 from doc_search.translator import Language, TranslationService, Translator
 
 # import gcld3 # TODO: Add language classification/detector
@@ -121,6 +113,27 @@ class TranslatorContextChatEngine(ContextChatEngine):
         self._tgt_language = language
         # self._transtate_prefix_messages()
 
+    def _get_prefix_messages_with_context(self, context_str: str) -> List[ChatMessage]:
+        """Get the prefix messages with context."""
+        # ensure we grab the user-configured system prompt
+        system_prompt = ""
+        prefix_messages = self._prefix_messages
+        if (
+            len(self._prefix_messages) != 0
+            and self._prefix_messages[0].role == MessageRole.SYSTEM
+        ):
+            system_prompt = str(self._prefix_messages[0].content)
+            prefix_messages = self._prefix_messages[1:]
+
+        context_str_w_sys_prompt = system_prompt.strip() + "\n" + context_str
+        return [
+            ChatMessage(
+                content=context_str_w_sys_prompt, role=self._llm.metadata.system_role
+            ),
+            *prefix_messages,
+        ]
+
+    @trace_method("chat")
     def stream_chat(
         self, message: str, chat_history: Optional[List[ChatMessage]] = None
     ) -> StreamingAgentChatResponse:
@@ -134,7 +147,39 @@ class TranslatorContextChatEngine(ContextChatEngine):
                 src_lang="eng",
                 tgt_lang=self._tgt_language.language_code,
             )
-        return super().stream_chat(message, chat_history)
+        if chat_history is not None:
+            self._memory.set(chat_history)
+        self._memory.put(ChatMessage(content=message, role="user"))
+
+        context_str_template, nodes = self._generate_context(message)
+        prefix_messages = self._get_prefix_messages_with_context(context_str_template)
+        initial_token_count = len(
+            self._memory.tokenizer_fn(
+                " ".join([(m.content or "") for m in prefix_messages])
+            )
+        )
+        all_messages = prefix_messages + self._memory.get(
+            initial_token_count=initial_token_count
+        )
+
+        chat_response = StreamingAgentChatResponse(
+            chat_stream=self._llm.stream_chat(all_messages),
+            sources=[
+                ToolOutput(
+                    tool_name="retriever",
+                    content=str(prefix_messages[0]),
+                    raw_input={"message": message},
+                    raw_output=prefix_messages[0],
+                )
+            ],
+            source_nodes=nodes,
+        )
+        thread = Thread(
+            target=chat_response.write_response_to_history, args=(self._memory,)
+        )
+        thread.start()
+
+        return chat_response
 
     def _generate_context(self, message: str) -> str | list[NodeWithScore]:
         # gcld3
