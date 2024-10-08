@@ -114,6 +114,15 @@ class DocRetrievalAugmentedGen:
     def _read_doc_and_load_index(
         self, filename: Path, forced_indexing: bool = False
     ) -> Tuple[VectorStoreIndex, StorageContext]:
+        """Reads a document from the specified file and loads the corresponding index and storage context.
+        
+        Args:
+            filename (Path): The path to the file to be read.
+            forced_indexing (bool, optional): Whether to force indexing of the file, even if it has been indexed before. Defaults to False.
+        
+        Returns:
+            Tuple[VectorStoreIndex, StorageContext]: The loaded index and storage context for the document.
+        """
         try:
             storage_context = StorageContext.from_defaults(
                 persist_dir=Path(self._setting.index_store)
@@ -256,6 +265,17 @@ class DocRetrievalAugmentedGen:
         )
 
     def reset_engine(self):
+        """
+        Resets the query engine based on the current chat mode and the available index and storage context for the selected embedding model.
+            
+        If the current chat mode is 'CHAT', the query engine is built without any index or storage context.
+            
+        If the current chat mode is 'QA' or 'SEMANTIC_SEARCH' and a query engine name is set, the query engine is built using the index and storage context for the specified query engine name and embedding model.
+            
+        If the current chat mode is 'SUMMARIZATION' or 'COVERLETTER_GEN', the query engine is built without any index or storage context, but the source and target languages are set.
+            
+        If the current chat mode is not recognized, the query engine is set to `None`.
+        """
         if self.embed_model not in self._doc_index_stores.keys():
             self._load_index_stores()
 
@@ -307,6 +327,14 @@ class DocRetrievalAugmentedGen:
         self.add_new_nodes(input_files=input_files)
 
     def add_new_nodes(self, input_files: List[str] = None) -> None:
+        """
+        Adds new nodes to the document index and storage context.
+        This method reads the contents of each file in the `input_files` list, creates a new index and storage context for the file, and adds them to the `_doc_index_stores` and `_doc_ctx_stores` dictionaries, respectively. The file name is also added to the `_files_registry` list to keep track of which files have been indexed.
+        
+        Args:
+            input_files (List[str], optional): A list of file paths to add to the index. If not provided, no new nodes will be added.
+        
+        """
         for file in input_files:
             if file not in self._files_registry:
                 filename = Path(file)
@@ -324,6 +352,18 @@ class DocRetrievalAugmentedGen:
         system_prompt: Optional[str] = None,
         language: Optional[str] = None,
     ):
+        """
+        Sets the chat mode and associated configuration for the document search engine.
+        
+        Args:
+            chat_mode (Optional[str]): The chat mode to set, one of the values in the `ChatMode` enum.
+            chat_config (Optional[dict]): A dictionary of configuration options for the selected chat mode.
+            system_prompt (Optional[str]): The system prompt to use for the selected chat mode.
+            language (Optional[str]): The language to use for the chat mode.
+        
+        This method updates the chat mode, system prompt, and language settings for the document search engine. It also resets the engine to apply the new settings.
+        """
+                
         if language:
             self.language = language or self._language
             self.system_prompt = system_prompt

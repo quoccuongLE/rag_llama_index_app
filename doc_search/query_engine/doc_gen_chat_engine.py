@@ -45,6 +45,21 @@ class DocGenChatEngine(TranslatorContextChatEngine):
         callback_manager: CallbackManager | None = None,
         job_name: str = "Data Scientist (Artifical Intelligence & Computer Vision)",
     ) -> None:
+        """Initializes a DocGenChatEngine instance with the provided parameters.
+        
+        Args:
+            retriever (BaseRetriever): The retriever used to retrieve relevant documents.
+            llm (LLM): The language model used for generating responses.
+            memory (BaseMemory): The memory used to store and retrieve context.
+            prefix_messages (List[ChatMessage]): The list of initial chat messages to include in the context.
+            src_document (Path | str | None, optional): The source document to use. Can be a file path or a string. Defaults to None.
+            topk (int, optional): The number of top results to return. Defaults to 3.
+            selection_template (str | None, optional): The template to use for selecting relevant text from the source document. Defaults to None.
+            node_postprocessors (List[BaseNodePostprocessor] | None, optional): The list of node postprocessors to apply. Defaults to None.
+            context_template (str | None, optional): The template to use for generating the context. Defaults to None.
+            callback_manager (CallbackManager | None, optional): The callback manager to use. Defaults to None.
+            job_name (str, optional): The name of the job. Defaults to "Data Scientist (Artifical Intelligence & Computer Vision)".
+        """
         super().__init__(
             retriever,
             llm,
@@ -64,9 +79,22 @@ class DocGenChatEngine(TranslatorContextChatEngine):
         self.job_name = job_name
 
     def set_source_document(self, document: str):
+        """Sets the source document for the DocGenChatEngine instance.
+        
+        Args:
+            document (str): The source document to use.
+        """
         self._src_document = document
 
     def _retrieve(self, target_document: str) -> str:
+        """Retrieves the most relevant qualifications or experiences of the candidate for the given job description.
+        
+        Args:
+            target_document (str): The job description to use for retrieving the relevant qualifications or experiences.
+        
+        Returns:
+            List[str]: The list of the most relevant qualifications or experiences of the candidate.
+        """
         text_with_template = self._selection_template.format(
             resume=self._src_document,
             job_description=target_document,
@@ -87,6 +115,13 @@ class DocGenChatEngine(TranslatorContextChatEngine):
         return [v for k, v in json_dict.items()]
 
     def _parse(self, output: str) -> dict:
+        """Attempts to parse the output of an LLM (Large Language Model) response into a JSON object.
+        
+        If the output can be directly parsed into JSON, it will return the JSON object. If the output contains a JSON-formatted string, it will extract and return the JSON object from that string. If neither of these approaches work, it will attempt to construct a JSON object from the output text.
+        
+        Returns:
+            dict: A dictionary representing the parsed JSON object.
+        """
         try:
             json_string = _marshal_llm_to_json(output)
             json_obj = json.loads(json_string)
@@ -113,6 +148,14 @@ class DocGenChatEngine(TranslatorContextChatEngine):
             return json_string
 
     def _generate_context(self, message: str) -> str | list[NodeWithScore]:
+        """Generates the context for a chat-based document generation engine.
+        
+        Args:
+            message (str): The input message to generate the context for.
+        
+        Returns:
+            str | list[NodeWithScore]: The generated context as a string, or a list of nodes with scores.
+        """
         if (
             self._tgt_language
             and self._translate_node

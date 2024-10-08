@@ -34,6 +34,12 @@ class ChatTab:
         self.create_ui()
 
     def check_and_update_chat_mode(self, topk: int = -1, nb_extract_char: int = -1):
+        """Checks and updates the chat mode of the RAG (Retrieval-Augmented Generation) engine.
+        
+        If the current chat mode is different from the RAG engine's chat mode, this method updates the chat mode and configuration of the RAG engine accordingly.
+        
+        For the "semantic search" chat mode, the method updates the configuration with the specified `topk` (top-k results) and `nb_extract_char` (number of characters to extract) parameters.
+        """
         if ChatMode(self.chat_mode) == self.rag_engine._chat_mode:
             return
         chat_config = dict(type=self.chat_mode)

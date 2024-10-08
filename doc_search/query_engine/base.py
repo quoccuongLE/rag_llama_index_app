@@ -44,6 +44,7 @@ def empty_response_generator() -> Generator[str, None, None]:
 
 
 class TranslatorContextChatEngine(ContextChatEngine):
+    """The `TranslatorContextChatEngine` class is an extension of the `ContextChatEngine` class that adds translation capabilities to the chat engine. It allows the chat engine to translate the user's message, the context, and the prefix messages to a target language if specified. The class also provides properties to set the source and target languages, and a method to generate the context for the chat engine by retrieving relevant nodes from the retriever and optionally translating the node content."""
 
     _translator: Translator = TranslationService.translator
     _src_language: Language | None = None
@@ -137,6 +138,16 @@ class TranslatorContextChatEngine(ContextChatEngine):
     def stream_chat(
         self, message: str, chat_history: Optional[List[ChatMessage]] = None
     ) -> StreamingAgentChatResponse:
+        """
+        Streams a chat response using the provided message, chat history, and the generated context.
+        
+        Args:
+            message (str): The user's message to be processed.
+            chat_history (Optional[List[ChatMessage]]): The chat history to be used in the context generation.
+        
+        Returns:
+            StreamingAgentChatResponse: The streaming chat response, including the chat stream, sources, and source nodes.
+        """    
         if (
             self._tgt_language
             and self._translate_node
@@ -182,7 +193,15 @@ class TranslatorContextChatEngine(ContextChatEngine):
         return chat_response
 
     def _generate_context(self, message: str) -> str | list[NodeWithScore]:
-        # gcld3
+        """Generates the context for the chat engine by retrieving relevant nodes from the retriever, and optionally translating the node content if a target language is specified and the source and target languages differ.
+        
+        Args:
+            message (str): The user's message to be processed.
+        
+        Returns:
+            str | list[NodeWithScore]: The generated context string and the list of retrieved nodes.
+        """
+                # gcld3
         # TODO: Missing language detector
         nodes = self._retriever.retrieve(message)
         for postprocessor in self._node_postprocessors:
@@ -223,6 +242,15 @@ class SummarizationChatEngine(TranslatorContextChatEngine):
     _expert_domain_str: str = "Science"
 
     def _generate_context(self, message: str) -> str | list[NodeWithScore]:
+        """
+        Generates the context for the chat engine by retrieving the provided message and optionally translating it if a target language is specified and the source and target languages differ.
+        
+        Args:
+            message (str): The user's message to be processed.
+        
+        Returns:
+            str | list[NodeWithScore]: The generated context string and an empty list of retrieved nodes.
+        """
         if (
             self._tgt_language
             and self._translate_node
