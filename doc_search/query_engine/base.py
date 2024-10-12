@@ -44,7 +44,13 @@ def empty_response_generator() -> Generator[str, None, None]:
 
 
 class TranslatorContextChatEngine(ContextChatEngine):
-    """The `TranslatorContextChatEngine` class is an extension of the `ContextChatEngine` class that adds translation capabilities to the chat engine. It allows the chat engine to translate the user's message, the context, and the prefix messages to a target language if specified. The class also provides properties to set the source and target languages, and a method to generate the context for the chat engine by retrieving relevant nodes from the retriever and optionally translating the node content."""
+    """The `TranslatorContextChatEngine` class is an extension of the
+    `ContextChatEngine` class that adds translation capabilities to the chat
+    engine. It allows the chat engine to translate the user's message, the
+    context, and the prefix messages to a target language if specified. The
+    class also provides properties to set the source and target languages, and
+    a method to generate the context for the chat engine by retrieving relevant
+    nodes from the retriever and optionally translating the node content."""
 
     _translator: Translator = TranslationService.translator
     _src_language: Language | None = None
@@ -72,6 +78,7 @@ class TranslatorContextChatEngine(ContextChatEngine):
             context_template,
             callback_manager,
         )
+        self._translator = TranslationService.translator
         # self._transtate_prefix_messages()
 
     def _transtate_prefix_messages(self):
@@ -139,14 +146,17 @@ class TranslatorContextChatEngine(ContextChatEngine):
         self, message: str, chat_history: Optional[List[ChatMessage]] = None
     ) -> StreamingAgentChatResponse:
         """
-        Streams a chat response using the provided message, chat history, and the generated context.
+        Streams a chat response using the provided message, chat history, and
+        the generated context.
         
         Args:
             message (str): The user's message to be processed.
-            chat_history (Optional[List[ChatMessage]]): The chat history to be used in the context generation.
+            chat_history (Optional[List[ChatMessage]]): The chat history to be
+            used in the context generation.
         
         Returns:
-            StreamingAgentChatResponse: The streaming chat response, including the chat stream, sources, and source nodes.
+            StreamingAgentChatResponse: The streaming chat response, including
+            the chat stream, sources, and source nodes.
         """    
         if (
             self._tgt_language
@@ -193,15 +203,18 @@ class TranslatorContextChatEngine(ContextChatEngine):
         return chat_response
 
     def _generate_context(self, message: str) -> str | list[NodeWithScore]:
-        """Generates the context for the chat engine by retrieving relevant nodes from the retriever, and optionally translating the node content if a target language is specified and the source and target languages differ.
+        """Generates the context for the chat engine by retrieving relevant
+        nodes from the retriever, and optionally translating the node content if
+        a target language is specified and the source and target languages differ.
         
         Args:
             message (str): The user's message to be processed.
         
         Returns:
-            str | list[NodeWithScore]: The generated context string and the list of retrieved nodes.
+            str | list[NodeWithScore]: The generated context string and the list
+                of retrieved nodes.
         """
-                # gcld3
+        # gcld3
         # TODO: Missing language detector
         nodes = self._retriever.retrieve(message)
         for postprocessor in self._node_postprocessors:
@@ -243,13 +256,16 @@ class SummarizationChatEngine(TranslatorContextChatEngine):
 
     def _generate_context(self, message: str) -> str | list[NodeWithScore]:
         """
-        Generates the context for the chat engine by retrieving the provided message and optionally translating it if a target language is specified and the source and target languages differ.
+        Generates the context for the chat engine by retrieving the provided
+        message and optionally translating it if a target language is specified
+        and the source and target languages differ.
         
         Args:
             message (str): The user's message to be processed.
         
         Returns:
-            str | list[NodeWithScore]: The generated context string and an empty list of retrieved nodes.
+            str | list[NodeWithScore]: The generated context string and an empty
+                list of retrieved nodes.
         """
         if (
             self._tgt_language
@@ -279,6 +295,22 @@ class RawBaseSynthesizer(Refine):
         additional_source_nodes: Optional[Sequence[NodeWithScore]] = None,
         **response_kwargs: Any,
     ) -> RESPONSE_TYPE:
+        """
+        Synthesizes a response based on the provided query and list of nodes.
+        
+        Args:
+            query (QueryType): The query to be processed.
+            nodes (list[NodeWithScore]): The list of nodes to be used in the
+                response synthesis.
+            additional_source_nodes (Optional[Sequence[NodeWithScore]]):
+                Additional source nodes to be used in the response synthesis.
+            **response_kwargs (Any): Additional keyword arguments to be passed
+                to the response synthesis.
+        
+        Returns:
+            RESPONSE_TYPE: The synthesized response.
+        """
+                
         if len(nodes) == 0:
             if self._streaming:
                 empty_response = StreamingResponse(
@@ -297,6 +329,18 @@ class RawBaseSynthesizer(Refine):
         return response
 
     def _prepare_response_output(self, source_nodes: list[NodeWithScore]):
+        """
+        Prepares the response output by formatting the source nodes and their
+            metadata.
+        
+        Args:
+            source_nodes (list[NodeWithScore]): The list of source nodes to be
+                used in the response.
+        
+        Returns:
+            Response: The formatted response containing the text, source nodes,
+                and metadata.
+        """
         response_metadata = self._get_metadata_for_response(
             [node_with_score.node for node_with_score in source_nodes]
         )
