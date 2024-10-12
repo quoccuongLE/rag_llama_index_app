@@ -31,11 +31,16 @@ class ChatTab:
         ]
         self.sidebar_state = gr.State(True)
         self.rag_engine = rag_engine
-        self.check_and_update_chat_mode()
         self.create_ui()
 
     def check_and_update_chat_mode(self, topk: int = -1, nb_extract_char: int = -1):
-        if self.chat_mode == self.rag_engine._chat_mode:
+        """Checks and updates the chat mode of the RAG (Retrieval-Augmented Generation) engine.
+        
+        If the current chat mode is different from the RAG engine's chat mode, this method updates the chat mode and configuration of the RAG engine accordingly.
+        
+        For the "semantic search" chat mode, the method updates the configuration with the specified `topk` (top-k results) and `nb_extract_char` (number of characters to extract) parameters.
+        """
+        if ChatMode(self.chat_mode) == self.rag_engine._chat_mode:
             return
         chat_config = dict(type=self.chat_mode)
         if self.chat_mode == "semantic search":
@@ -82,6 +87,7 @@ class ChatTab:
             sys.stdout = console
 
     def _change_model(self, model: str) -> str:
+        self.rag_engine._chat_mode = ChatMode(self.chat_mode)
         if model not in [None, ""]:
             self.rag_engine.model = model
             self.rag_engine.reset_engine()

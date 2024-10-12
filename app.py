@@ -13,7 +13,8 @@ def main(
     debug: bool = False,
     show_api: bool = False,
 ):
-    rag_engine = DocRetrievalAugmentedGen(setting=config)
+    def get_rag_engine():
+        return DocRetrievalAugmentedGen(setting=config)
     title = "Multilingual QA semantic search powered by LLM"
     DESCRIPTION = """
     # This is an official demo for Multilingual QA semantic search engine. \n
@@ -24,19 +25,21 @@ def main(
         gr.Markdown(DESCRIPTION)
         with gr.Tabs("Interface"):
             with gr.TabItem("Chat"):
-                ChatTab(rag_engine=rag_engine)
+                ChatTab(rag_engine=get_rag_engine())
             with gr.TabItem("QA"):
-                QATab(rag_engine=rag_engine)
+                QATab(rag_engine=get_rag_engine())
             with gr.TabItem("Semantic search"):
-                QATab(rag_engine=rag_engine, chat_mode="semantic search")
+                QATab(rag_engine=get_rag_engine(), chat_mode="semantic search")
             with gr.TabItem("Summarization"):
-                ChatTab(rag_engine=rag_engine, chat_mode="summarization")
+                ChatTab(rag_engine=get_rag_engine(), chat_mode="summarization")
             with gr.TabItem("Cover letter generation"):
-                CoverLetterGenTab(rag_engine=rag_engine, chat_mode="cover letter gen")
+                CoverLetterGenTab(
+                    rag_engine=get_rag_engine(), chat_mode="cover letter gen"
+                )
             with gr.TabItem("Settings"):
-                SettingTab(rag_engine=rag_engine)
+                SettingTab(rag_engine=get_rag_engine())
             with gr.TabItem("Translation"):
-                TranslatorTab(rag_engine=rag_engine)
+                TranslatorTab(rag_engine=get_rag_engine())
     demo.queue().launch(share=share, server_name=host, debug=debug, show_api=show_api)
 
 

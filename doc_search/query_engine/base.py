@@ -3,13 +3,13 @@ from typing import Any, Generator, List, Optional, Sequence
 
 from llama_index.core import StorageContext, VectorStoreIndex
 from llama_index.core.base.base_retriever import BaseRetriever
-from llama_index.core.base.response.schema import (
-    RESPONSE_TYPE,
-    Response,
-    StreamingResponse,
-)
-from llama_index.core.callbacks import CallbackManager
+from llama_index.core.base.llms.types import ChatMessage, MessageRole
+from llama_index.core.base.response.schema import (RESPONSE_TYPE, Response,
+                                                   StreamingResponse)
+from llama_index.core.callbacks import CallbackManager, trace_method
 from llama_index.core.chat_engine import ContextChatEngine, SimpleChatEngine
+from llama_index.core.chat_engine.types import (StreamingAgentChatResponse,
+                                                ToolOutput)
 from llama_index.core.llms import ChatMessage
 from llama_index.core.llms.llm import LLM
 from llama_index.core.memory import BaseMemory, ChatMemoryBuffer
@@ -17,23 +17,15 @@ from llama_index.core.postprocessor.types import BaseNodePostprocessor
 from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.core.response_synthesizers import Refine
 from llama_index.core.retrievers import AutoMergingRetriever
-from llama_index.core.schema import MetadataMode, NodeWithScore, QueryBundle, QueryType
+from llama_index.core.schema import (MetadataMode, NodeWithScore, QueryBundle,
+                                     QueryType)
 from llama_index.core.settings import Settings
+from llama_index.core.types import Thread
 from tqdm import tqdm
 
-from llama_index.core.chat_engine.types import StreamingAgentChatResponse
-
-from doc_search.prompt.qa_prompt import (
-    qa_template,
-    summarization_template,
-)
+from doc_search.prompt.qa_prompt import qa_template, summarization_template
 from doc_search.query_engine import factory
-from doc_search.settings import (
-    CitationEngineConfig,
-    EngineConfig,
-    QAEngineConfig,
-    SimpleChatEngineConfig,
-)
+from doc_search.settings import EngineConfig, SimpleChatEngineConfig
 from doc_search.translator import Language, TranslationService, Translator
 
 # import gcld3 # TODO: Add language classification/detector
@@ -52,6 +44,13 @@ def empty_response_generator() -> Generator[str, None, None]:
 
 
 class TranslatorContextChatEngine(ContextChatEngine):
+    """The `TranslatorContextChatEngine` class is an extension of the
+    `ContextChatEngine` class that adds translation capabilities to the chat
+    engine. It allows the chat engine to translate the user's message, the
+    context, and the prefix messages to a target language if specified. The
+    class also provides properties to set the source and target languages, and
+    a method to generate the context for the chat engine by retrieving relevant
+    nodes from the retriever and optionally translating the node content."""
 
     _translator: Translator = TranslationService.translator
     _src_language: Language | None = None
@@ -79,6 +78,7 @@ class TranslatorContextChatEngine(ContextChatEngine):
             context_template,
             callback_manager,
         )
+        self._translator = TranslationService.translator
         # self._transtate_prefix_messages()
 
     def _transtate_prefix_messages(self):
@@ -121,9 +121,43 @@ class TranslatorContextChatEngine(ContextChatEngine):
         self._tgt_language = language
         # self._transtate_prefix_messages()
 
+    def _get_prefix_messages_with_context(self, context_str: str) -> List[ChatMessage]:
+        """Get the prefix messages with context."""
+        # ensure we grab the user-configured system prompt
+        system_prompt = ""
+        prefix_messages = self._prefix_messages
+        if (
+            len(self._prefix_messages) != 0
+            and self._prefix_messages[0].role == MessageRole.SYSTEM
+        ):
+            system_prompt = str(self._prefix_messages[0].content)
+            prefix_messages = self._prefix_messages[1:]
+
+        context_str_w_sys_prompt = system_prompt.strip() + "\n" + context_str
+        return [
+            ChatMessage(
+                content=context_str_w_sys_prompt, role=self._llm.metadata.system_role
+            ),
+            *prefix_messages,
+        ]
+
+    @trace_method("chat")
     def stream_chat(
         self, message: str, chat_history: Optional[List[ChatMessage]] = None
     ) -> StreamingAgentChatResponse:
+        """
+        Streams a chat response using the provided message, chat history, and
+        the generated context.
+        
+        Args:
+            message (str): The user's message to be processed.
+            chat_history (Optional[List[ChatMessage]]): The chat history to be
+            used in the context generation.
+        
+        Returns:
+            StreamingAgentChatResponse: The streaming chat response, including
+            the chat stream, sources, and source nodes.
+        """    
         if (
             self._tgt_language
             and self._translate_node
@@ -134,9 +168,52 @@ class TranslatorContextChatEngine(ContextChatEngine):
                 src_lang="eng",
                 tgt_lang=self._tgt_language.language_code,
             )
-        return super().stream_chat(message, chat_history)
+        if chat_history is not None:
+            self._memory.set(chat_history)
+        self._memory.put(ChatMessage(content=message, role="user"))
+
+        context_str_template, nodes = self._generate_context(message)
+        prefix_messages = self._get_prefix_messages_with_context(context_str_template)
+        initial_token_count = len(
+            self._memory.tokenizer_fn(
+                " ".join([(m.content or "") for m in prefix_messages])
+            )
+        )
+        all_messages = prefix_messages + self._memory.get(
+            initial_token_count=initial_token_count
+        )
+
+        chat_response = StreamingAgentChatResponse(
+            chat_stream=self._llm.stream_chat(all_messages),
+            sources=[
+                ToolOutput(
+                    tool_name="retriever",
+                    content=str(prefix_messages[0]),
+                    raw_input={"message": message},
+                    raw_output=prefix_messages[0],
+                )
+            ],
+            source_nodes=nodes,
+        )
+        thread = Thread(
+            target=chat_response.write_response_to_history, args=(self._memory,)
+        )
+        thread.start()
+
+        return chat_response
 
     def _generate_context(self, message: str) -> str | list[NodeWithScore]:
+        """Generates the context for the chat engine by retrieving relevant
+        nodes from the retriever, and optionally translating the node content if
+        a target language is specified and the source and target languages differ.
+        
+        Args:
+            message (str): The user's message to be processed.
+        
+        Returns:
+            str | list[NodeWithScore]: The generated context string and the list
+                of retrieved nodes.
+        """
         # gcld3
         # TODO: Missing language detector
         nodes = self._retriever.retrieve(message)
@@ -178,6 +255,18 @@ class SummarizationChatEngine(TranslatorContextChatEngine):
     _expert_domain_str: str = "Science"
 
     def _generate_context(self, message: str) -> str | list[NodeWithScore]:
+        """
+        Generates the context for the chat engine by retrieving the provided
+        message and optionally translating it if a target language is specified
+        and the source and target languages differ.
+        
+        Args:
+            message (str): The user's message to be processed.
+        
+        Returns:
+            str | list[NodeWithScore]: The generated context string and an empty
+                list of retrieved nodes.
+        """
         if (
             self._tgt_language
             and self._translate_node
@@ -206,6 +295,22 @@ class RawBaseSynthesizer(Refine):
         additional_source_nodes: Optional[Sequence[NodeWithScore]] = None,
         **response_kwargs: Any,
     ) -> RESPONSE_TYPE:
+        """
+        Synthesizes a response based on the provided query and list of nodes.
+        
+        Args:
+            query (QueryType): The query to be processed.
+            nodes (list[NodeWithScore]): The list of nodes to be used in the
+                response synthesis.
+            additional_source_nodes (Optional[Sequence[NodeWithScore]]):
+                Additional source nodes to be used in the response synthesis.
+            **response_kwargs (Any): Additional keyword arguments to be passed
+                to the response synthesis.
+        
+        Returns:
+            RESPONSE_TYPE: The synthesized response.
+        """
+                
         if len(nodes) == 0:
             if self._streaming:
                 empty_response = StreamingResponse(
@@ -224,6 +329,18 @@ class RawBaseSynthesizer(Refine):
         return response
 
     def _prepare_response_output(self, source_nodes: list[NodeWithScore]):
+        """
+        Prepares the response output by formatting the source nodes and their
+            metadata.
+        
+        Args:
+            source_nodes (list[NodeWithScore]): The list of source nodes to be
+                used in the response.
+        
+        Returns:
+            Response: The formatted response containing the text, source nodes,
+                and metadata.
+        """
         response_metadata = self._get_metadata_for_response(
             [node_with_score.node for node_with_score in source_nodes]
         )
