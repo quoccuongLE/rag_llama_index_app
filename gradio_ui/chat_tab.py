@@ -140,7 +140,7 @@ class ChatTab:
                 chatbot = gr.Chatbot(
                     layout="bubble",
                     value=[],
-                    height=550,
+                    height=400,
                     scale=2,
                     show_copy_button=True,
                     bubble_full_width=False,
