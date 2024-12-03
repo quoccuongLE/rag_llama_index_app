@@ -13,9 +13,7 @@ from .defaults import DefaultElement
 
 class CoverLetterGenTab(QATab):
     _resume_dict: dict[str, str] = {
-        "my_portfolio.md": Path(
-            "./data/cover_letter_gen/docs/my_portfolio.md"
-        )
+        "my_portfolio.md": Path("./data/cover_letter_gen/docs/my_portfolio.md")
     }
 
     def __init__(
@@ -57,9 +55,18 @@ class CoverLetterGenTab(QATab):
             document = f.read()
         self.rag_engine._query_engine.set_source_document(document)
 
-    def check_and_update_chat_mode(self, topk: int = 3, job_name: str = ""):
+    def check_and_update_chat_mode(
+        self,
+        topk: int = 3,
+        job_name: str = "",
+        nb_words: int = 360,
+        coverletter_format: str = "short",
+    ):
         self.rag_engine._query_engine._topk = topk
         self.rag_engine._query_engine.job_name = job_name
+        self.rag_engine._query_engine.output_token_number = nb_words
+        self.rag_engine._query_engine.short_format = coverletter_format == "short"
+        gr.Info("Update input info (format, top-k & job name)!")
 
     def _get_respone(
         self,
@@ -173,6 +180,14 @@ class CoverLetterGenTab(QATab):
                     )
                     # nb_extract_char = gr.Number(value=300, show_label=False)
                     job_name = gr.Text(show_label="Job name", value="Data Scientist")
+                    nb_words = gr.Number(
+                        value=300, show_label="Number of words", visible=False
+                    )
+                    coverletter_format = gr.Radio(
+                        show_label="Cover letter format",
+                        choices=["long", "short"],
+                        value="long",
+                    )
                     search_update_btn = gr.Button(value="Update", min_width=10)
                 with gr.Row(variant=self._variant):
                     ui_btn = gr.Button(
@@ -218,5 +233,6 @@ class CoverLetterGenTab(QATab):
         )
         file_list.change(self._change_selected_file, inputs=[file_list])
         search_update_btn.click(
-            self.check_and_update_chat_mode, inputs=[top_k, job_name]
+            self.check_and_update_chat_mode,
+            inputs=[top_k, job_name, nb_words, coverletter_format],
         )

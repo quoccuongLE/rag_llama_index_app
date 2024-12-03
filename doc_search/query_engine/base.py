@@ -171,6 +171,7 @@ class TranslatorContextChatEngine(ContextChatEngine):
         if chat_history is not None:
             self._memory.set(chat_history)
         self._memory.put(ChatMessage(content=message, role="user"))
+        # self._memory.put(ChatMessage(content="This is a test", role="system"))
 
         context_str_template, nodes = self._generate_context(message)
         prefix_messages = self._get_prefix_messages_with_context(context_str_template)

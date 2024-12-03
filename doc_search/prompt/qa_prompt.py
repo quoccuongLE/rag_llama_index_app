@@ -125,7 +125,7 @@ cover_letter_template_given_candidate_bio = (
     "\n--------------------\n"
     "{qualifications_str}"
     "\n--------------------\n"
-    "Write a cover letter for a position of {job_name} to impress the hiring manager. "
+    "Write a {short_or_long} cover letter with about {number_of_words} words for a position of {job_name} to impress the hiring manager. "
     "Use only skills he has. Do not mention skills or experiences that he does not have. The job description is detailed below:"
     "\n--------------------\n"
     "{context_str}"

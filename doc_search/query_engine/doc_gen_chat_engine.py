@@ -44,6 +44,8 @@ class DocGenChatEngine(TranslatorContextChatEngine):
         context_template: str | None = None,
         callback_manager: CallbackManager | None = None,
         job_name: str = "Data Scientist (Artifical Intelligence & Computer Vision)",
+        output_token_number: int = 360,
+        short_format: bool = False,
     ) -> None:
         """Initializes a DocGenChatEngine instance with the provided parameters.
         
@@ -77,6 +79,8 @@ class DocGenChatEngine(TranslatorContextChatEngine):
         self._topk = topk
         self._selection_template = PromptTemplate(selection_template)
         self.job_name = job_name
+        self.output_token_number = output_token_number
+        self.short_format = short_format
 
     def set_source_document(self, document: str):
         """Sets the source document for the DocGenChatEngine instance.
@@ -178,6 +182,8 @@ class DocGenChatEngine(TranslatorContextChatEngine):
             self._context_template.format(
                 expert_domain_str=self.expert_domain_str,
                 job_name=self.job_name,
+                number_of_words=self.output_token_number,
+                short_or_long= "short" if self.short_format else "long",
                 context_str=text,
                 qualifications_str="".join(bio),
             ),
