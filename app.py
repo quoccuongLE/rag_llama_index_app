@@ -24,6 +24,10 @@ def main(
     ) as demo:
         gr.Markdown(DESCRIPTION)
         with gr.Tabs("Interface"):
+            with gr.TabItem("Cover letter generation"):
+                CoverLetterGenTab(
+                    rag_engine=get_rag_engine(), chat_mode="cover letter gen"
+                )
             with gr.TabItem("Chat"):
                 ChatTab(rag_engine=get_rag_engine())
             with gr.TabItem("QA"):
@@ -32,10 +36,6 @@ def main(
                 QATab(rag_engine=get_rag_engine(), chat_mode="semantic search")
             with gr.TabItem("Summarization"):
                 ChatTab(rag_engine=get_rag_engine(), chat_mode="summarization")
-            with gr.TabItem("Cover letter generation"):
-                CoverLetterGenTab(
-                    rag_engine=get_rag_engine(), chat_mode="cover letter gen"
-                )
             with gr.TabItem("Settings"):
                 SettingTab(rag_engine=get_rag_engine())
             with gr.TabItem("Translation"):

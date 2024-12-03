@@ -1,6 +1,6 @@
 import time
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import ClassVar, Optional
 
 from llama_index.core.chat_engine.types import StreamingAgentChatResponse
 
@@ -36,6 +36,8 @@ class LLMResponse:
         message: str,
         history: list[list[str]],
         response: StreamingAgentChatResponse,
+        header_message: Optional[str] = None,
+        ending_message: Optional[str] = None
     ):
         answer = []
         _response = (
@@ -43,6 +45,9 @@ class LLMResponse:
             if isinstance(response, StreamingAgentChatResponse)
             else response.response
         )
+        if header_message:
+            answer.append(header_message)
+
         for text in _response:
             answer.append(text)
             yield (
@@ -50,6 +55,14 @@ class LLMResponse:
                 history + [[message, "".join(answer)]],
                 DefaultElement.ANSWERING_STATUS,
             )
+        if ending_message:
+            answer.append(ending_message)
+            yield (
+                DefaultElement.DEFAULT_MESSAGE,
+                history + [[message, "".join(answer)]],
+                DefaultElement.ANSWERING_STATUS,
+            )
+
         yield (
             DefaultElement.DEFAULT_MESSAGE,
             history + [[message, "".join(answer)]],

@@ -81,9 +81,10 @@ class CoverLetterGenTab(QATab):
             console = sys.stdout
             sys.stdout = self._logger
             response = self.rag_engine.query(self.chat_mode, message["text"], chatbot)
+            (coverletter, retrieved_msg) = response if isinstance(response, tuple) else (response, None)
             # Yield response
             for m in self._llm_response.stream_response(
-                message["text"], chatbot, response
+                message["text"], chatbot, coverletter, retrieved_msg
             ):
                 yield m
             sys.stdout = console
