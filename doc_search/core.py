@@ -433,7 +433,10 @@ class DocRetrievalAugmentedGen:
             return self._query_engine.query(message)
 
         elif self._chat_mode == ChatMode.COVERLETTER_GEN:
-            return self._query_engine.stream_chat(message, [])
+            return (
+                self._query_engine.stream_chat(message, []),
+                self._query_engine.retrieved_items_message(),
+            )
 
         else:
             return Response(
