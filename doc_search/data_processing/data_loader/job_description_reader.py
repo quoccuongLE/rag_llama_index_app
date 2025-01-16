@@ -1,13 +1,16 @@
 import json
-from llama_index.core.schema import Document
+import re
+from copy import deepcopy
 
 from langchain.output_parsers import ResponseSchema, StructuredOutputParser
-from .multilingual_base import MultiLingualBaseReader
-from doc_search.translator import Language
-from llama_index.core.settings import Settings
 from llama_index.core.output_parsers import LangchainOutputParser
 from llama_index.core.output_parsers.utils import _marshal_llm_to_json
+from llama_index.core.schema import Document
+from llama_index.core.settings import Settings
 
+from doc_search.translator import Language
+
+from .multilingual_base import MultiLingualBaseReader
 
 info_extraction_template = (
     "The following passage is a job description."
@@ -17,10 +20,49 @@ info_extraction_template = (
     "\n--------------------\n"
 )
 
+
+def parse_time_period(text_line: str) -> tuple[str, str]:
+    """
+    Parses a time period from a given text line.
+
+    Args:
+      text_line: The text line to parse.
+
+    Returns:
+      A tuple containing the start and end dates (strings) if a valid
+      time period is found, otherwise None.
+    """
+
+    # Define patterns for different time period formats
+    patterns = [
+        r"(\d{1,2}/\d{1,2}/\d{4}) - (\d{1,2}/\d{1,2}/\d{4})",  # MM/DD/YYYY - MM/DD/YYYY
+        r"(\d{1,2}/\d{1,2}/\d{4}) - (Present)",
+        r"(January|February|March|April|May|June|July|August|September|October|November|December) \d{4} - (January|February|March|April|May|June|July|August|September|October|November|December) \d{4}",
+        r"(January|February|March|April|May|June|July|August|September|October|November|December) \d{4} - (Present)",
+        r"(\d{4}) - (\d{4})",  # YYYY - YYYY
+        r"(\d{4}) - (Present)",  # YYYY - Present
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, text_line)
+        if match:
+            try:
+                start_date, end_date = tuple(match.group(0).split("-"))
+            except:
+                start_date = match.group(0)
+                end_date = None
+
+            return start_date.strip(), end_date.strip()
+
+    return None
+
+
 class JobDescriptionReader(MultiLingualBaseReader):
 
     def __init__(
-        self, tgt_language: Language = Language("eng"), translator_config: dict = None
+        self,
+        tgt_language: Language = Language("eng"),
+        translator_config: dict | None = None,
     ):
         super().__init__(tgt_language, translator_config)
         self._llm = Settings.llm
@@ -85,4 +127,108 @@ class JobDescriptionReader(MultiLingualBaseReader):
                 raise ValueError(f"Failed to convert output to JSON: {output!r}")
             return json_obj
         except:
-            return {} 
+            return {}
+
+
+class BaseMarkdownPortfolioReader(MultiLingualBaseReader):
+    def __init__(
+        self,
+        tgt_language: Language = Language("eng"),
+        translator_config: dict | None = None,
+    ):
+        super().__init__(tgt_language, translator_config)
+        self._key_items = {
+            "Summary": [],
+            "Professional Experience": [],
+            "Education": [],
+            "Technical Skills": [],
+            "Scholarship & Award": [],
+            "Volunteering": [],
+            "Publications & Patents": [],
+            "Hobbies": [],
+            "Research project": [],
+            "Language": [],
+        }
+        self._item_structure = {
+            "Summary": {},
+            "Technical Skills": {},
+            "Professional Experience": {
+                3: ["position"],
+                4: ["period", "place"],
+                -1: ["Technology"],
+            },
+            "Education": {
+                3: ["position"],
+                4: ["period", "place"],
+                -1: ["Keywords"],
+            },
+            "Scholarship & Award": {3: ["period", "award"]},
+            "Volunteering": {
+                3: ["position"],
+                4: ["period", "place"],
+            },
+            "Publications & Patents": {},
+            "Hobbies": {},
+            "Research project": {4: ["name"]},
+            "Language": {3: ["name"]},
+        }
+
+    def parse(self, markdown_text: str, chunking: bool = True):
+        lines = markdown_text.split("\n")
+        current_header_level = 0
+        header_stack = []
+        topic = ""
+        position = ""
+        period: tuple[str] = ()
+        place: str = ""
+        # current_item: ResumeItem = ResumeItem()
+        current_item = {}
+        current_text: str = ""
+        for line in lines:
+            header_match = re.match(r"^#+\s", line)
+            if header_match:
+                if current_text not in ["", "\n"] and topic != "":
+                    if len(self._item_structure[topic]) == 0:
+                        self._key_items[topic] = [current_text]
+                        current_text = ""
+                        current_item = {}
+                    else:
+                        current_item["content"] = [current_text]
+                        self._key_items[topic].append(deepcopy(current_item))
+                        current_text = ""
+                        current_item = {}
+
+                header_level = line.count("#")
+                header_text = line.replace("#", "").strip()
+                if header_level == 2 and header_text in self._key_items.keys():
+                    topic = header_text
+
+                elif header_level > 2:
+                    if topic not in self._item_structure.keys():
+                        continue
+                    if header_level not in self._item_structure[topic].keys():
+                        continue
+                    keys = self._item_structure[topic][header_level]
+                    for k in keys:
+                        if k == "period":
+                            period = parse_time_period(header_text)
+                            current_item[k] = period
+
+                            try:
+                                period_str = f"({period[0]} - {period[1]})"
+                                header_text = header_text.replace(period_str, "")
+                            except:
+                                try:
+                                    header_text = header_text.split(":")[1]
+                                except:
+                                    pass
+                        else:
+                            current_item[k] = header_text.strip()
+            else:
+                if chunking:
+                    current_text += line + "\n"
+                else:
+                    current_text.append(line)
+
+    def get_item(self, key):
+        return self._key_items[key]
