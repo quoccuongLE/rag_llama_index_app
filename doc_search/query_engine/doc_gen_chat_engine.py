@@ -17,7 +17,10 @@ from llama_index.core.schema import NodeWithScore
 from llama_index.core.settings import Settings
 
 from doc_search.prompt.qa_prompt import (
-    cover_letter_template_given_candidate_bio, multi_select_item_in_resume)
+    cover_letter_template_given_candidate_bio,
+    multi_select_item_in_resume,
+)
+from doc_search.data_processing.data_loader import JobDescriptionReader, BaseMarkdownPortfolioReader
 from doc_search.query_engine import factory
 from doc_search.settings import EngineConfig
 
@@ -48,7 +51,7 @@ class DocGenChatEngine(TranslatorContextChatEngine):
         short_format: bool = False,
     ) -> None:
         """Initializes a DocGenChatEngine instance with the provided parameters.
-        
+
         Args:
             retriever (BaseRetriever): The retriever used to retrieve relevant documents.
             llm (LLM): The language model used for generating responses.
@@ -85,7 +88,7 @@ class DocGenChatEngine(TranslatorContextChatEngine):
 
     def set_source_document(self, document: str):
         """Sets the source document for the DocGenChatEngine instance.
-        
+
         Args:
             document (str): The source document to use.
         """
@@ -93,21 +96,22 @@ class DocGenChatEngine(TranslatorContextChatEngine):
 
     def _retrieve(self, target_document: str) -> str:
         """Retrieves the most relevant qualifications or experiences of the candidate for the given job description.
-        
+
         Args:
             target_document (str): The job description to use for retrieving the relevant qualifications or experiences.
-        
+
         Returns:
             List[str]: The list of the most relevant qualifications or experiences of the candidate.
         """
         text_with_template = self._selection_template.format(
             resume=self._src_document,
             job_description=target_document,
-            max_outputs=self._topk
+            max_outputs=self._topk,
         )
         description = f"One of the most relevant qualifications or experiences of the candidate to apply for the job."
         response_schemas = [
-            ResponseSchema(name=f"reason_{i + 1}", description=description) for i in range(self._topk)
+            ResponseSchema(name=f"reason_{i + 1}", description=description)
+            for i in range(self._topk)
         ]
 
         lc_output_parser = StructuredOutputParser.from_response_schemas(
@@ -121,9 +125,9 @@ class DocGenChatEngine(TranslatorContextChatEngine):
 
     def _parse(self, output: str) -> dict:
         """Attempts to parse the output of an LLM (Large Language Model) response into a JSON object.
-        
+
         If the output can be directly parsed into JSON, it will return the JSON object. If the output contains a JSON-formatted string, it will extract and return the JSON object from that string. If neither of these approaches work, it will attempt to construct a JSON object from the output text.
-        
+
         Returns:
             dict: A dictionary representing the parsed JSON object.
         """
@@ -154,10 +158,10 @@ class DocGenChatEngine(TranslatorContextChatEngine):
 
     def _generate_context(self, message: str) -> str | list[NodeWithScore]:
         """Generates the context for a chat-based document generation engine.
-        
+
         Args:
             message (str): The input message to generate the context for.
-        
+
         Returns:
             str | list[NodeWithScore]: The generated context as a string, or a list of nodes with scores.
         """
@@ -186,7 +190,7 @@ class DocGenChatEngine(TranslatorContextChatEngine):
                 expert_domain_str=self.expert_domain_str,
                 job_name=self.job_name,
                 number_of_words=self.output_token_number,
-                short_or_long= "short" if self.short_format else "long",
+                short_or_long="short" if self.short_format else "long",
                 context_str=text,
                 qualifications_str="".join(bio),
             ),
@@ -201,6 +205,107 @@ class DocGenChatEngine(TranslatorContextChatEngine):
         extra_info += "".join(self._retrieved_items)
         extra_info += "".join("\n___________________________________\n")
         return extra_info
+
+
+class ContextMatchDocGenChatEngine(DocGenChatEngine):
+    def __init__(
+        self,
+        retriever,
+        llm,
+        memory,
+        prefix_messages,
+        job_description: str,
+        portfolio: str,
+        topk=3,
+        selection_template=None,
+        node_postprocessors=None,
+        context_template=None,
+        callback_manager=None,
+        output_token_number=360,
+        short_format=False,
+    ):
+        super(DocGenChatEngine).__init__(
+            retriever,
+            llm,
+            memory,
+            prefix_messages,
+            node_postprocessors,
+            context_template,
+            callback_manager,
+        )
+        self.portfolio_reader = BaseMarkdownPortfolioReader()
+        self.job_description_reader = JobDescriptionReader()
+        self.portfolio = portfolio
+        self.job_description = job_description
+        self._topk = topk
+        self._selection_template = selection_template
+        self.output_token_number = output_token_number
+        self.short_format = short_format
+        self._retrieved_items = None
+        self._key_criteria = {
+            "education": [],
+            "experience": [],
+            "technical skills": [],
+            "soft skills": [],
+            "nice to haves": [],
+        }
+        self.portfolio_reader.parse(self.portfolio)
+        self.job_description_reader.parse(self.job_description)
+        self._embed_model = Settings.embed_model
+        self.matching_threshold = 0.8
+        print("Retrieving items...")
+        self._retrieve()
+
+    def _retrieve(self) -> str:
+        for key, _ in self._key_criteria.items():
+            candidate_items = self.portfolio_reader.get(key).split("\n")
+            job_description_items = self.job_description_reader.get(key).split("\n")
+            candidate_embeddings = self._embed_model.encode(candidate_items)
+            job_description_embeddings = self._embed_model.encode(job_description_items)
+            similarity_matrix = self._embed_model.get_similarity_matrix(
+                candidate_embeddings, job_description_embeddings
+            )
+            pairs = []
+            for i, candidate_item in enumerate(candidate_items):
+                for j, job_description_item in enumerate(job_description_items):
+                    if similarity_matrix[i, j] > self.matching_threshold:
+                        pairs.append((candidate_item, job_description_item))
+            self._key_criteria[key] = pairs
+            self._retrieved_items = [x[0] for x in self._key_criteria.values()]
+
+    def _generate_context(self, message: str) -> str | list[NodeWithScore]:
+        if (
+            self._tgt_language
+            and self._translate_node
+            and self._tgt_language.language_code != self._src_language.language_code
+        ):
+            text = self._translator.translate(
+                sources=message,
+                src_lang=self._src_language,
+                tgt_lang=self._tgt_language,
+            )
+        else:
+            text = message
+
+        bio = []
+        for key, value in self._key_criteria.items():
+            bio.append(f"### {key}\n")
+            for pair in value:
+                bio.append(f"* The candiate possesses {pair[0]} matching to the "
+                           f"criteria found in the job description :{pair[1]}\n")
+        self._retrieved_items = bio
+
+        return (
+            self._context_template.format(
+                expert_domain_str=self.expert_domain_str,
+                job_name=self.job_name,
+                number_of_words=self.output_token_number,
+                short_or_long="short" if self.short_format else "long",
+                context_str=text,
+                qualifications_str="".join(bio),
+            ),
+            [],
+        )
 
 
 @factory.register_builder("cover letter gen")

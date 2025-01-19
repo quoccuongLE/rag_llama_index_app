@@ -175,13 +175,8 @@ class BaseMarkdownPortfolioReader(MultiLingualBaseReader):
 
     def parse(self, markdown_text: str, chunking: bool = True):
         lines = markdown_text.split("\n")
-        current_header_level = 0
-        header_stack = []
         topic = ""
-        position = ""
         period: tuple[str] = ()
-        place: str = ""
-        # current_item: ResumeItem = ResumeItem()
         current_item = {}
         current_text: str = ""
         for line in lines:
