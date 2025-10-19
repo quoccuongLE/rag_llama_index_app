@@ -68,7 +68,7 @@ class QATab(ChatTab):
     def _update_file_list(self):
         return gr.Dropdown(choices=self.rag_engine._files_registry)
 
-    def _change_selected_file(self, filename: str):
+    def _update_portfolio(self, filename: str):
         self.rag_engine._query_engine_name = filename
         self.rag_engine.set_chat_mode()
 
@@ -223,7 +223,7 @@ class QATab(ChatTab):
         ).then(
             self._update_file_list, outputs=[file_list]
         )
-        file_list.change(self._change_selected_file, inputs=[file_list])
+        file_list.change(self._update_portfolio, inputs=[file_list])
         search_update_btn.click(
             self.check_and_update_chat_mode, inputs=[top_k, nb_extract_char]
         )

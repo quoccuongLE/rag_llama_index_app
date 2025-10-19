@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from typing import Dict, List
 
+import numpy as np
 from langchain.output_parsers import ResponseSchema, StructuredOutputParser
 from llama_index.core import PromptTemplate
 from llama_index.core.base.base_retriever import BaseRetriever
@@ -15,16 +16,17 @@ from llama_index.core.output_parsers.utils import _marshal_llm_to_json
 from llama_index.core.postprocessor.types import BaseNodePostprocessor
 from llama_index.core.schema import NodeWithScore
 from llama_index.core.settings import Settings
+from sklearn.metrics.pairwise import cosine_similarity
 
+from doc_search.data_processing.data_loader import (
+    BaseMarkdownPortfolioReader, JobDescriptionReader)
 from doc_search.prompt.qa_prompt import (
-    cover_letter_template_given_candidate_bio,
-    multi_select_item_in_resume,
-)
-from doc_search.data_processing.data_loader import JobDescriptionReader, BaseMarkdownPortfolioReader
+    cover_letter_template_given_candidate_bio, multi_select_item_in_resume)
 from doc_search.query_engine import factory
 from doc_search.settings import EngineConfig
 
 from .base import TranslatorContextChatEngine
+from .utils import semantic_search
 
 
 class DocGenChatEngine(TranslatorContextChatEngine):
@@ -216,15 +218,14 @@ class ContextMatchDocGenChatEngine(DocGenChatEngine):
         prefix_messages,
         job_description: str,
         portfolio: str,
-        topk=3,
-        selection_template=None,
+        topk: int = 3,
         node_postprocessors=None,
         context_template=None,
         callback_manager=None,
         output_token_number=360,
         short_format=False,
     ):
-        super(DocGenChatEngine).__init__(
+        super(DocGenChatEngine, self).__init__(
             retriever,
             llm,
             memory,
@@ -238,39 +239,62 @@ class ContextMatchDocGenChatEngine(DocGenChatEngine):
         self.portfolio = portfolio
         self.job_description = job_description
         self._topk = topk
-        self._selection_template = selection_template
         self.output_token_number = output_token_number
         self.short_format = short_format
         self._retrieved_items = None
         self._key_criteria = {
-            "education": [],
-            "experience": [],
-            "technical skills": [],
-            "soft skills": [],
-            "nice to haves": [],
+            "Education": ["Education"],
+            "Professional Experience": ["Professional Experience"],
+            "Technical skills": ["Technical skills", "Professional Experience"],
+            "Nice to Haves": [
+                "Education",
+                "Professional Experience",
+                "Technical skills",
+            ],
         }
-        self.portfolio_reader.parse(self.portfolio)
-        self.job_description_reader.parse(self.job_description)
         self._embed_model = Settings.embed_model
         self.matching_threshold = 0.8
-        print("Retrieving items...")
-        self._retrieve()
 
-    def _retrieve(self) -> str:
-        for key, _ in self._key_criteria.items():
-            candidate_items = self.portfolio_reader.get(key).split("\n")
-            job_description_items = self.job_description_reader.get(key).split("\n")
-            candidate_embeddings = self._embed_model.encode(candidate_items)
-            job_description_embeddings = self._embed_model.encode(job_description_items)
-            similarity_matrix = self._embed_model.get_similarity_matrix(
-                candidate_embeddings, job_description_embeddings
+    def set_source_document(self, portfolio: str):
+        """Sets the source document for the DocGenChatEngine instance.
+
+        Args:
+            document (str): The source document to use.
+        """
+        self.portfolio = portfolio
+
+    def set_job_description(self, job_description: str):
+        """Sets the job description for the DocGenChatEngine instance.
+
+        Args:
+            job_description (str): The job description to use.
+        """
+        self.job_description = job_description
+
+    def retrieve(self) -> str:
+        self.portfolio_reader.parse(self.portfolio)
+        self.job_description_reader.parse(self.job_description)
+        for jd_key, portfolio_key in self._key_criteria.items():
+            candidate_items = []
+            for key in portfolio_key:
+                candidate_items.extend(self.portfolio_reader.generate_text(key))
+            job_description_items = self.job_description_reader._retrieved_infos[
+                "skill and qualification requirements"
+            ][jd_key]
+            candidate_embeddings = self._embed_model.get_text_embedding_batch(
+                candidate_items,
+                # show_progress=True
             )
-            pairs = []
-            for i, candidate_item in enumerate(candidate_items):
-                for j, job_description_item in enumerate(job_description_items):
-                    if similarity_matrix[i, j] > self.matching_threshold:
-                        pairs.append((candidate_item, job_description_item))
-            self._key_criteria[key] = pairs
+            job_description_embeddings = self._embed_model.get_text_embedding_batch(
+                job_description_items,
+                # show_progress=True
+            )
+            semantic_search_results = semantic_search(
+                query_embeddings=candidate_embeddings,
+                corpus_embeddings=job_description_embeddings,
+                top_k=3,
+            )
+            # self._key_criteria[key] = pairs
             self._retrieved_items = [x[0] for x in self._key_criteria.values()]
 
     def _generate_context(self, message: str) -> str | list[NodeWithScore]:
@@ -291,8 +315,10 @@ class ContextMatchDocGenChatEngine(DocGenChatEngine):
         for key, value in self._key_criteria.items():
             bio.append(f"### {key}\n")
             for pair in value:
-                bio.append(f"* The candiate possesses {pair[0]} matching to the "
-                           f"criteria found in the job description :{pair[1]}\n")
+                bio.append(
+                    f"* The candiate possesses {pair[0]} matching to the "
+                    f"criteria found in the job description :{pair[1]}\n"
+                )
         self._retrieved_items = bio
 
         return (
@@ -308,7 +334,7 @@ class ContextMatchDocGenChatEngine(DocGenChatEngine):
         )
 
 
-@factory.register_builder("cover letter gen")
+@factory.register_builder("cover letter gen legacy")
 def build_doc_gen_1(
     config: EngineConfig,
     postprocessors: list | None = None,
@@ -319,6 +345,26 @@ def build_doc_gen_1(
         llm=Settings.llm,
         prefix_messages="",
         selection_template=multi_select_item_in_resume,
+        topk=config.similarity_top_k,
+        memory=ChatMemoryBuffer(token_limit=config.chat_token_limit),
+        context_template=cover_letter_template_given_candidate_bio,
+    )
+
+
+@factory.register_builder("cover letter gen")
+def build_doc_gen_2(
+    config: EngineConfig,
+    portfolio: str | None = None,
+    job_description: str | None = None,
+    postprocessors: list | None = None,
+    **kwargs,
+) -> ContextChatEngine:
+    return ContextMatchDocGenChatEngine(
+        retriever=None,
+        llm=Settings.llm,
+        prefix_messages="",
+        portfolio=portfolio,
+        job_description=job_description,
         topk=config.similarity_top_k,
         memory=ChatMemoryBuffer(token_limit=config.chat_token_limit),
         context_template=cover_letter_template_given_candidate_bio,

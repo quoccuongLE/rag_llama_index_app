@@ -28,7 +28,7 @@ class CoverLetterGenTab(QATab):
         self.rag_engine.set_chat_mode(
             chat_mode=ChatMode.COVERLETTER_GEN, chat_config=dict(type=self.chat_mode)
         )
-        self._change_selected_file("my_portfolio.md")
+        self._update_portfolio("my_portfolio.md")
 
     def _processing_document(
         self, document: list[str], progress=gr.Progress(track_tqdm=False)
@@ -50,7 +50,7 @@ class CoverLetterGenTab(QATab):
     def _update_file_list(self):
         return gr.Dropdown(choices=list(self._resume_dict))
 
-    def _change_selected_file(self, filename: str):
+    def _update_portfolio(self, filename: str):
         with open(self._resume_dict[filename], "r", encoding="utf-8") as f:
             document = f.read()
         self.rag_engine._query_engine.set_source_document(document)
@@ -232,7 +232,7 @@ class CoverLetterGenTab(QATab):
         ).then(
             self._update_file_list, outputs=[file_list]
         )
-        file_list.change(self._change_selected_file, inputs=[file_list])
+        file_list.change(self._update_portfolio, inputs=[file_list])
         search_update_btn.click(
             self.check_and_update_chat_mode,
             inputs=[top_k, job_name, nb_words, coverletter_format],

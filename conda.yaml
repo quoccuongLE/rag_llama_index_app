@@ -1,48 +1,48 @@
-name: llama_index_app
+ùname: llama_index_app
 channels:
-  - defaults
-  - pytorch
-  - conda-forge
-  - nvidia
+- defaults
+- pytorch
+- conda-forge
+- nvidia
 dependencies:
-  - python=3.10
-  - pytorch::pytorch=2.2.2
-  - pytorch::torchvision=0.17.2
-  - pytorch::pytorch-cuda=12.1
-  - conda-forge::huggingface_hub=0.24.1
-  - conda-forge::opencv
-  - conda-forge::python-dotenv
-  - conda-forge::scikit-learn
-  - conda-forge::pillow
-  - conda-forge::pydantic
-  - conda-forge::transformers
-  - conda-forge::tabulate
-  - conda-forge::ftfy
-  - conda-forge::texify
-  - conda-forge::rapidfuzz
-  - conda-forge::filetype
-  - conda-forge::regex
-  - conda-forge::pdftext
-  - conda-forge::grpcio
-  - conda-forge::langchain
-  - conda-forge::langchain-community
-  - pip
-  - pip:
-    - fire
-    - openai
-    - llama-index==0.11.14
-    - llama-index-llms-ollama
-    - llama-index-embeddings-ollama
-    - llama-index-llms-azure-inference
-    - llama-index-embeddings-huggingface
-    - llama-index-vector-stores-milvus
-    - InstructorEmbedding
-    - git+https://github.com/FlagOpen/FlagEmbedding.git
-    - sentence_transformers
-    - sentencepiece
-    - ollama
-    - flash_attn
-    - gradio
-    - spacy
-    - pymupdf4llm
-    - gcld3
+- python=3.10
+- pytorch::pytorch=2.2.2
+- pytorch::torchvision=0.17.2
+- pytorch::pytorch-cuda=12.1
+- conda-forge::huggingface_hub=0.24.1
+- conda-forge::opencv
+- conda-forge::python-dotenv
+- conda-forge::scikit-learn
+- conda-forge::pillow
+- conda-forge::pydantic
+- conda-forge::transformers
+- conda-forge::tabulate
+- conda-forge::ftfy
+- conda-forge::texify
+- conda-forge::rapidfuzz
+- conda-forge::filetype
+- conda-forge::regex
+- conda-forge::pdftext
+- conda-forge::grpcio
+- conda-forge::langchain
+- conda-forge::langchain-community
+- pip
+- pip:
+  - fire
+  - openai
+  - llama-index==0.11.14
+  - llama-index-llms-ollama
+  - llama-index-embeddings-ollama
+  - llama-index-llms-azure-inference
+  - llama-index-embeddings-huggingface
+  - llama-index-vector-stores-milvus
+  - InstructorEmbedding
+  - git+https://github.com/FlagOpen/FlagEmbedding.git
+  - sentence_transformers
+  - sentencepiece
+  - ollama
+  - flash_attn
+  - gradio
+  - spacy
+  - pymupdf4llm
+  - gcld3

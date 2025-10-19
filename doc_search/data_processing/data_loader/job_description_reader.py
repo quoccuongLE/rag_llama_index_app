@@ -69,11 +69,11 @@ class JobDescriptionReader(MultiLingualBaseReader):
         self._template = info_extraction_template
         self._key_items = {
             "skill and qualification requirements": {
-                "education": "Required education for the position",
-                "experience": "Required experience for the position",
-                "technical skills": "Required technical skills for the position",
-                "soft skills": "Required soft skills for the position",
-                "nice to haves": "Other requirements that make candidate outstanding",
+                "Education": "Required education for the position",
+                "Professional Experience": "Required experience for the position",
+                "Technical skills": "Required technical skills for the position",
+                "Soft skills": "Required soft skills for the position",
+                "Nice to Haves": "Other requirements that make candidate outstanding",
             },
             "about the job": {
                 "job name": "Title of the hiring position",
@@ -172,6 +172,48 @@ class BaseMarkdownPortfolioReader(MultiLingualBaseReader):
             "Research project": {4: ["name"]},
             "Language": {3: ["name"]},
         }
+        self._retrieved_text_templates = {
+            "Education": {
+                "template": "Earned {position} from {place} in {period}",
+                "fields": ["position", "place", "period"],
+            },
+            "Professional Experience": {
+                "template": "Worked as {position} at {place} from {period_start} to {period_end}",
+                "fields": ["position", "place", "period_start", "period_end"],
+            },
+            "Technical Skills": {
+                "template": "Proficient in {Technology}",
+                "fields": ["Technology"],
+            },
+        }
+
+    def generate_text(self, key: str) -> str:
+        template = self._retrieved_text_templates[key]["template"]
+        fields = self._retrieved_text_templates[key]["fields"]
+        items = []
+        for item in self._key_items[key]:
+            sub_dict = {k: item[k] for k in fields}
+            if "Education" == key:
+                sub_dict["period"] = sub_dict["period"][1]
+                items.append(template.format(**sub_dict))
+            elif "Professional Experience" == key:
+                if "period" in sub_dict.keys():
+                    sub_dict["period_start"], sub_dict["period_end"] = sub_dict["period"]
+                    sub_dict.pop("period")
+                items.append(template.format(**sub_dict))
+            elif "Technical Skills" == key:
+                skills = self.generate_tech_skills()
+                items.extend([template.format(Technology=skill) for skill in skills])
+
+        return items
+
+    def generate_tech_skills(self) -> str:
+        temp = self._key_items["Technical Skills"][0].split("\n")
+        temp = [x for x in temp if x]
+        skill_list = []
+        for tmp in temp:
+            raw_skills = tmp.split(":")[1].strip().split(",")
+            skill_list.extend(raw_skills)
 
     def parse(self, markdown_text: str, chunking: bool = True):
         lines = markdown_text.split("\n")
