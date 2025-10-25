@@ -25,7 +25,7 @@ class ConfigParams(BaseModel, extra="allow"):
 
 class LLMSetting(ConfigParams):
     type: str = Field(default="ollama")
-    model: str = Field(default="llama3.1", description="LLM model used in RAG")
+    model: str = Field(default="gpt-oss:20b", description="LLM model used in RAG")
     azure_ai_api_key: str = Field(default=os.environ.get("GITHUB_TOKEN"), description="Azure AI API key")
     system_prompt: str = Field(default=get_system_prompt(language="eng", is_rag_prompt=False))
     temperature: float = Field(default=0.5, description="The temperature to use for sampling.")
@@ -40,7 +40,7 @@ class EmbedModelSetting(ConfigParams):
         default="ollama", description="Source of embedding (ollama or huggingface)"
     )
     name: str = Field(
-        default="mxbai-embed-large", description="Embedding model used in RAG"
+        default="embeddinggemma:latest", description="Embedding model used in RAG"
     )
     host: str = Field(default="localhost")
     port: int = Field(default=11434)

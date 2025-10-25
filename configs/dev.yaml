@@ -2,7 +2,7 @@ embed_model:
   host: localhost
   query_instruction: ''
   max_seq_length: 8192
-  name: mxbai-embed-large
+  name: embeddinggemma:latest
   port: 11434
   request_timeout: 120.0
   type: ollama
@@ -10,22 +10,18 @@ file_storage: ./data/doc_search/docs
 index_store: ./data/doc_search/index_store
 llm:
   host: localhost
-  model: llama3.1
+  model: gpt-oss:20b
   port: 11434
   request_timeout: 120.0
-  system_prompt: This is a chat between a user and an artificial intelligence assistant.
-    The assistant gives helpful, detailed, and polite answers to the user's questions
-    based on the context. The assistant should also indicate when the answer cannot
-    be found in the context.
+  system_prompt: This is a chat between a user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions based on the context. The assistant should also indicate when the answer cannot be found in the context.
   temperature: 0.5
   type: ollama
 parser_config:
   index_store_name: vector_store_index
-  instruct_prompt: "This document is an insurance policy.
-When a benefits/coverage/exlusion is describe in the document ammend to it add a text in the follwing benefits string format (where coverage could be an exclusion). For {nameofrisk} and in this condition {whenDoesThecoverageApply} the coverage is {coverageDescription}. If the document contain a benefits TABLE that describe coverage amounts, do not ouput it as a table, but instead as a list of benefits string."
+  instruct_prompt: "This document is an insurance policy. When a benefits/coverage/exlusion is describe in the document ammend to it add a text in the follwing benefits string format (where coverage could be an exclusion). For {nameofrisk} and in this condition {whenDoesThecoverageApply} the coverage is {coverageDescription}. If the document contain a benefits TABLE that describe coverage amounts, do not ouput it as a table, but instead as a list of benefits string."
   llm:
     host: localhost
-    model: llama3.1
+    model: gpt-oss:20b
     port: 11434
     request_timeout: 120.0
     system_prompt: ""
