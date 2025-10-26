@@ -3,7 +3,7 @@ import gradio as gr
 from doc_search import DocRetrievalAugmentedGen
 from gradio_ui import ChatTab, QATab, SettingTab, TranslatorTab
 
-from gradio_ui import CoverLetterGenTab
+from gradio_ui import CoverLetterGenTabV2 as CoverLetterGenTab
 import fire
 
 

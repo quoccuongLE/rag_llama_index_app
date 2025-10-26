@@ -164,4 +164,4 @@ class PDFMarkdownReader(MultiLingualBaseReader):
 
 @factory.register_builder("pdf_markdown_reader")
 def build_pdf_markdown_reader(config: LoaderConfig, **kwargs):
-    return PDFMarkdownReader(show_progress=config.show_progress, )
+    return PDFMarkdownReader(show_progress=config.show_progress)

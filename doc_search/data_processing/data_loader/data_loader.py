@@ -42,7 +42,10 @@ def build_simple_file_reader(file: Path, config: LoaderConfig):
 
 @factory.register_builder("llama_parse")
 def build_llama_parse_reader(config: LoaderConfig):
-    return LlamaParse(result_type=config.result_type, parsing_instruction=config.parsing_instruction)
+    return LlamaParse(
+        result_type=config.loader_config.result_type,
+        parsing_instruction=config.loader_config.parsing_instruction,
+    )
 
 
 @factory.register_builder("multiple_files")

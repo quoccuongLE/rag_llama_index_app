@@ -72,15 +72,11 @@ class CoverLetterGenTabV2(QATab):
 
     def retrieve(self):
         self.rag_engine._query_engine.retrieve()
-        matches = []
-        for key in self.rag_engine._query_engine.keys():
-            matches.append(self.self.rag_engine._query_engine[key])
-
-        return matches
+        return self.rag_engine._query_engine.get_retrieved_items()
 
     def generate_cover_letter(self):
-        response = self.rag_engine.query(self.chat_mode)
-        return response
+        response = self.rag_engine._query_engine.generate_cover_letter()
+        return response.text
 
     def create_ui(self):
         with gr.Row(variant=self._variant, equal_height=False):

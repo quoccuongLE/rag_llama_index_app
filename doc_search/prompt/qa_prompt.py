@@ -130,6 +130,7 @@ cover_letter_template_given_candidate_bio = (
     "\n--------------------\n"
     "{context_str}"
     "\n--------------------\n"
+    "Now write a cover letter here."
 )
 
 # multiple select

@@ -34,6 +34,7 @@ _AZURE_MODELS = [
 ]
 
 _EMBED_MODELS = [
+    "ollama/embeddinggemma:latest",
     "ollama/mxbai-embed-large",  # (Recommended for short context (512 max) d = 1024)
     "ollama/nomic-embed-text",  # (Recommended for long context (8192 max) d = 768)
     "ollama/all-minilm",
@@ -81,7 +82,7 @@ class DocRetrievalAugmentedGen:
         self._file_storage = Path(self._setting.file_storage)
         self._doc_index_stores = {}
         self._doc_ctx_stores = {}
-        self._load_index_stores()
+        # self._load_index_stores()
         self._chat_mode: ChatMode = ChatMode(chat_mode)
         TranslationService.translator = translator_factory.build(
             config=self._setting.translator_config,
@@ -109,7 +110,7 @@ class DocRetrievalAugmentedGen:
 
     @property
     def default_embed_model(self) -> str:
-        return "ollama/rjmalagon/gte-qwen2-1.5b-instruct-embed-f16"
+        return "ollama/embeddinggemma:latest"
 
     def _read_doc_and_load_index(
         self, filename: Path, forced_indexing: bool = False
@@ -295,8 +296,8 @@ class DocRetrievalAugmentedGen:
         If the current chat mode is not recognized, the query engine is set to
         `None`.
         """
-        if self.embed_model not in self._doc_index_stores.keys():
-            self._load_index_stores()
+        # if self.embed_model not in self._doc_index_stores.keys():
+        #     self._load_index_stores()
 
         if self._chat_mode == ChatMode.CHAT:
             self._query_engine = qengine_factory.build(
@@ -431,12 +432,6 @@ class DocRetrievalAugmentedGen:
 
         elif self._chat_mode == ChatMode.SEMANTIC_SEARCH:
             return self._query_engine.query(message)
-
-        elif self._chat_mode == ChatMode.COVERLETTER_GEN:
-            return (
-                self._query_engine.stream_chat(message, []),
-                self._query_engine.retrieved_items_message(),
-            )
 
         else:
             return Response(

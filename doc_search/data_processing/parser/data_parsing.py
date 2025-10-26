@@ -30,10 +30,11 @@ class SimpleParser:
     ) -> None:
         self.data_runtime = data_runtime
         self.parser_config = parser_config
-        if self.parser_config.loader_name == "llama_parse":
-            self.doc_loader = loader_factory.build(
-                name=self.parser_config.loader_name, config=self.parser_config
-            )
+        # if self.parser_config.loader_name == "llama_parse":
+        # self.doc_loader = loader_factory.build(
+        #     name=self.parser_config.loader_name, config=self.parser_config
+        # )
+        self.doc_loader = MultiLingualBaseReader()
 
     def read_file(self, filename: Path, dirname: str):
         assert filename.is_file(), f"Input path {filename} is not a file !"

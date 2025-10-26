@@ -3,11 +3,13 @@ from pathlib import Path
 from typing import Dict, List
 
 import numpy as np
+import ollama
 from langchain.output_parsers import ResponseSchema, StructuredOutputParser
 from llama_index.core import PromptTemplate
 from llama_index.core.base.base_retriever import BaseRetriever
 from llama_index.core.callbacks.base import CallbackManager
 from llama_index.core.chat_engine import ContextChatEngine
+from llama_index.core.chat_engine.types import AgentChatResponse
 from llama_index.core.llms import ChatMessage
 from llama_index.core.llms.llm import LLM
 from llama_index.core.memory import BaseMemory, ChatMemoryBuffer
@@ -16,7 +18,6 @@ from llama_index.core.output_parsers.utils import _marshal_llm_to_json
 from llama_index.core.postprocessor.types import BaseNodePostprocessor
 from llama_index.core.schema import NodeWithScore
 from llama_index.core.settings import Settings
-from sklearn.metrics.pairwise import cosine_similarity
 
 from doc_search.data_processing.data_loader import (
     BaseMarkdownPortfolioReader, JobDescriptionReader)
@@ -27,6 +28,20 @@ from doc_search.settings import EngineConfig
 
 from .base import TranslatorContextChatEngine
 from .utils import semantic_search
+
+
+def _get_ollama_embeddings(documents: list[str]):
+    embeddings = []
+    response = ollama.embed(model="embeddinggemma", input=documents)
+    embeddings.append(response.get("embeddings"))
+    res =  np.asarray(embeddings) if embeddings else None
+    if res.ndim == 3:
+        res = res.squeeze(0)
+        return res
+    if res.ndim == 2:
+        return res
+    else:
+        raise NotImplementedError
 
 
 class DocGenChatEngine(TranslatorContextChatEngine):
@@ -222,7 +237,7 @@ class ContextMatchDocGenChatEngine(DocGenChatEngine):
         node_postprocessors=None,
         context_template=None,
         callback_manager=None,
-        output_token_number=360,
+        output_token_number=1200,
         short_format=False,
     ):
         super(DocGenChatEngine, self).__init__(
@@ -241,19 +256,19 @@ class ContextMatchDocGenChatEngine(DocGenChatEngine):
         self._topk = topk
         self.output_token_number = output_token_number
         self.short_format = short_format
-        self._retrieved_items = None
+        self._retrieved_items = {}
         self._key_criteria = {
             "Education": ["Education"],
             "Professional Experience": ["Professional Experience"],
-            "Technical skills": ["Technical skills", "Professional Experience"],
+            "Technical Skills": ["Technical Skills"],
             "Nice to Haves": [
                 "Education",
                 "Professional Experience",
-                "Technical skills",
+                "Technical Skills",
             ],
         }
         self._embed_model = Settings.embed_model
-        self.matching_threshold = 0.8
+        self.matching_threshold = 0.65
 
     def set_source_document(self, portfolio: str):
         """Sets the source document for the DocGenChatEngine instance.
@@ -281,21 +296,32 @@ class ContextMatchDocGenChatEngine(DocGenChatEngine):
             job_description_items = self.job_description_reader._retrieved_infos[
                 "skill and qualification requirements"
             ][jd_key]
-            candidate_embeddings = self._embed_model.get_text_embedding_batch(
-                candidate_items,
-                # show_progress=True
-            )
-            job_description_embeddings = self._embed_model.get_text_embedding_batch(
-                job_description_items,
-                # show_progress=True
-            )
+            # candidate_embeddings = self._embed_model.get_text_embedding_batch(
+            #     candidate_items,
+            #     # show_progress=True
+            # )
+            # job_description_embeddings = self._embed_model.get_text_embedding_batch(
+            #     job_description_items,
+            #     # show_progress=True
+            # )
+            candidate_embeddings = _get_ollama_embeddings(candidate_items)
+            job_description_embeddings = _get_ollama_embeddings(job_description_items)
+
             semantic_search_results = semantic_search(
-                query_embeddings=candidate_embeddings,
-                corpus_embeddings=job_description_embeddings,
+                query_embeddings=job_description_embeddings,
+                corpus_embeddings=candidate_embeddings,
                 top_k=3,
             )
-            # self._key_criteria[key] = pairs
-            self._retrieved_items = [x[0] for x in self._key_criteria.values()]
+            corpus_id = semantic_search_results[0][0]["corpus_id"]
+            score = semantic_search_results[0][0]["score"]
+            if score < self.matching_threshold:
+                self._retrieved_items[jd_key] = None
+                continue
+            retrieved_item = candidate_items[corpus_id]
+            self._retrieved_items[jd_key] = retrieved_item
+
+    def get_retrieved_items(self):
+        return self._retrieved_items
 
     def _generate_context(self, message: str) -> str | list[NodeWithScore]:
         if (
@@ -312,14 +338,16 @@ class ContextMatchDocGenChatEngine(DocGenChatEngine):
             text = message
 
         bio = []
-        for key, value in self._key_criteria.items():
-            bio.append(f"### {key}\n")
-            for pair in value:
-                bio.append(
-                    f"* The candiate possesses {pair[0]} matching to the "
-                    f"criteria found in the job description :{pair[1]}\n"
-                )
-        self._retrieved_items = bio
+        for key, value in self._retrieved_items.items():
+            if value:
+                bio.append(f"### {key}\n")
+                bio.append(value)
+            # for pair in value:
+            #     bio.append(
+            #         f"* The candiate possesses {pair[0]} matching to the "
+            #         f"criteria found in the job description :{pair[1]}\n"
+            #     )
+        self.bio = bio
 
         return (
             self._context_template.format(
@@ -327,11 +355,27 @@ class ContextMatchDocGenChatEngine(DocGenChatEngine):
                 job_name=self.job_name,
                 number_of_words=self.output_token_number,
                 short_or_long="short" if self.short_format else "long",
-                context_str=text,
+                context_str=self.job_description,
                 qualifications_str="".join(bio),
             ),
             [],
         )
+
+    def generate_cover_letter(self) -> AgentChatResponse:
+        if (
+            self._tgt_language
+            and self._translate_node
+            and self._tgt_language.language_code != self._src_language.language_code
+        ):
+            message += self._translator.translate(
+                sources=self._postfix_message + f"{self._tgt_language.english_name}",
+                src_lang="eng",
+                tgt_lang=self._tgt_language.language_code,
+            )
+        # self._memory.put(ChatMessage(content=, role="user"))
+
+        context_str_template, nodes = self._generate_context("")
+        return self._llm.complete(context_str_template)
 
 
 @factory.register_builder("cover letter gen legacy")
